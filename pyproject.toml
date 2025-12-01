@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "dreambooth"
+version = "0.1.0"
+description = "Custom DreamBooth training pipeline"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Your Name", email = "you@example.com" }
+]
+
+requires-python = ">=3.10"
+
+dependencies = [
+    "numpy",
+    "Pillow",
+    "tqdm",
+    "accelerate",
+    "transformers",
+    "diffusers",
+    "torch",          # CPU version; GPU is installed separately via Makefile
+    "torchvision"
+]
+
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "isort",
+    "ruff",
+    "pytest",
+    "pytest-cov",
+]
+
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+
+[tool.ruff]
+line-length = 88
+
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+
+[tool.pytest.ini_options]
+addopts = "-v"
+testpaths = ["tests"]
