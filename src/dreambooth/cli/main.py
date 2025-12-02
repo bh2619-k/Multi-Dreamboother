@@ -3,6 +3,8 @@ import logging
 import sys
 from pathlib import Path
 
+from dreambooth.training.trainer import DreamBoothTrainer
+
 log = logging.getLogger("DiffusionCrafter")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
 
@@ -51,7 +53,15 @@ def main():
         help="General class description without the unique token, "
         "e.g., 'a photo of a dog'. Used for prior-preservation during training.",
     )
-    train_p.add_argument("--batch_size", type=int, default=2, help="Mini batch size")
+    train_p.add_argument(
+        "--batch_size",
+        type=int,
+        default=2,
+        help=(
+            "Mini batch size for fine-tuning stable diffusion. "
+            "If prior preservation loss is on, it should be an even number."
+        ),
+    )
     train_p.add_argument("--max_steps", type=int, default=400, help="Training steps")
     train_p.add_argument(
         "--learning_rate",
@@ -69,6 +79,19 @@ def main():
             "class prompt. Requires batch size >1. Typically used with "
             "--instance_prompt and --class_prompt."
         ),
+    )
+    train_p.add_argument(
+        "--num_class_images",
+        type=int,
+        default=200,
+        help="Number of class images to generate when using --prior_preservation "
+        "(used for class loss).",
+    )
+    train_p.add_argument(
+        "--class_generation_batch_size",
+        type=int,
+        default=4,
+        help="Batch size used when generating class images for prior preservation.",
     )
 
     # === INFER BRANCH ===
@@ -114,6 +137,21 @@ def main():
         log.info("\n=== TRAIN MODE ===")
         log.info("Input arguments: {}".format(args))
 
+        # Dreambooth trainer object
+        trainer = DreamBoothTrainer(
+            model_name=args.model_name,
+            input_folder=args.input_folder,
+            save_folder=args.save_folder,
+            train_text_encoder=args.train_text_encoder,
+            instance_prompt=args.instance_prompt,
+            class_prompt=args.class_prompt,
+            batch_size=args.batch_size,
+            max_steps=args.max_steps,
+            learning_rate=args.learning_rate,
+            prior_preservation=args.prior_preservation,
+            num_class_images=args.num_class_images,
+            class_generation_batch_size=args.class_generation_batch_size,
+        )
         # TODO: Call real training here
         return
 
