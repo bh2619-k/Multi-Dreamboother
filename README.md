@@ -22,6 +22,7 @@ source .venv/bin/activate
 make install-gpu
 make install-dev
 ```
+If you want to change the version of cuda enabled torch, you can modify install-gpu section in `Makefile`.
 
 ### 4. Verify GPU support
 
@@ -51,7 +52,9 @@ dreambooth infer --help
     --batch_size 2 \
     --max_steps 400 \
     --learning_rate 2.0e-06 \
-    --prior_preservation
+    --prior_preservation \
+    --num_class_images 200 \
+    --class_generation_batch_size 20
 ```
 
 ### Inference
