@@ -23,7 +23,9 @@ def get_transform_image_to_tensor(model_name: str, train_inference: str = "train
     """
     # --- Determine image size based on known models ---
     if "stabilityai/stable-diffusion-2-1" in model_name:
-        image_size = 768
+        image_size = constants.DefaultModelResolution[
+            "stabilityai/stable-diffusion-2-1"
+        ]
     else:
         raise ValueError(
             f"Unsupported model: '{model_name}'. "
@@ -53,7 +55,8 @@ def get_transform_image_to_tensor(model_name: str, train_inference: str = "train
             ]
         )
     else:
-        raise ValueError(f"Invalid mode '{train_inference}'. Expected 'train', 'val', or 'test'.")
+        raise ValueError(f"Invalid mode '{train_inference}'. " 
+                         "Expected 'train', 'val', or 'test'.")
 
     return transform
 

@@ -1,4 +1,4 @@
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 import torch
 from torch.utils.data import Dataset
@@ -8,9 +8,11 @@ from dreambooth.data.data_utils import list_files, read_image_rgb
 
 
 class ImageCollectionDatasetWithDefaultPrompt(Dataset):
-    """Loads all RGB images from a folder and assigns a shared default prompt.
+    """Loads all RGB images from a folder and assigns a shared
+      default prompt.
 
-    Each sample returns tokenized prompt IDs and image tensors for DreamBooth-style training.
+    Each sample returns tokenized prompt IDs and image tensors 
+    for DreamBooth-style training.
     """
 
     def __init__(
@@ -61,7 +63,9 @@ class ImageCollectionDatasetWithDefaultPrompt(Dataset):
 
         def collate_fn(samples):
             pixel_values = torch.stack([sample_i['image'] for sample_i in samples])
-            pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
+            pixel_values = pixel_values.to(
+                memory_format=torch.contiguous_format
+            ).float()
 
             input_ids = [sample_i["instance_prompt_ids"] for sample_i in samples]
             input_ids = tokenizer.pad(

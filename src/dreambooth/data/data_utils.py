@@ -34,8 +34,12 @@ def list_files(
 
     # Filter by suffixes
     if suffixes:
-        suffixes = [s.lower() if s.startswith('.') else f'.{s.lower()}' for s in suffixes]
-        files = [f for f in files_iter if f.is_file() and f.suffix.lower() in suffixes]
+        suffixes = [
+            s.lower() if s.startswith('.') else f'.{s.lower()}' for s in suffixes
+        ]
+        files = [
+            f for f in files_iter if f.is_file() and f.suffix.lower() in suffixes
+        ]
     else:
         files = [f for f in files_iter if f.is_file()]
 
@@ -68,7 +72,11 @@ def read_image_rgb(path: Union[str, Path]) -> Image.Image:
         raise OSError(f"Failed to read image {path}: {e}") from e
 
 
-def save_image_rgb(image: Image.Image, path: Union[str, Path], format: str | None = None) -> None:
+def save_image_rgb(
+        image: Image.Image, 
+        path: Union[str, Path], 
+        format: str | None = None
+    ) -> None:
     """
     Saves a PIL RGB image to a file.
 
@@ -177,7 +185,9 @@ def dict_to_namespace(d: dict):
         return d
 
 
-def read_yaml_config(path: Union[str, Path], args: Optional[object] = None) -> SimpleNamespace:
+def read_yaml_config(
+        path: Union[str, Path], args: Optional[object] = None
+    ) -> SimpleNamespace:
     """Load a YAML config file and return it as a SimpleNamespace.
 
     Recursively converts the YAML dictionary into an object that supports
@@ -209,6 +219,6 @@ def read_yaml_config(path: Union[str, Path], args: Optional[object] = None) -> S
         else:
             # handles argparse.Namespace or any object with __dict__
             args_dict = vars(args)
-        setattr(config, "args", SimpleNamespace(**args_dict))
+        config.args = SimpleNamespace(**args_dict)
 
     return config
