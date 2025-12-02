@@ -1,0 +1,136 @@
+import argparse
+import logging
+import sys
+from pathlib import Path
+
+log = logging.getLogger("DiffusionCrafter")
+logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="DreamBooth utility for Stable Diffusion - train or inference."
+    )
+
+    # Two modes: train, infer
+    sub = parser.add_subparsers(dest="mode", required=True)
+
+    # === TRAIN BRANCH ===
+    train_p = sub.add_parser("train", help="Train a DreamBooth model")
+    train_p.add_argument(
+        "--model_name",
+        type=str,
+        required=True,
+        help="Base HF model repo (e.g. stabilityai/stable-diffusion-2-1)",
+    )
+    train_p.add_argument(
+        "--input_folder",
+        type=str,
+        required=True,
+        help="Folder with training images, collection of several images of a subject",
+    )
+    train_p.add_argument(
+        "--save_folder", type=str, required=True, help="Where to save trained model"
+    )
+    train_p.add_argument(
+        "--train_text_encoder",
+        action="store_true",
+        help="In addition to diffusion model, also fine-tune text encoder",
+    )
+    train_p.add_argument(
+        "--instance_prompt",
+        type=str,
+        required=True,
+        help="Describe the training subject using your special token + subject type, "
+        "e.g., 'a photo of sks dog' or 'a photo of sks woman'. Keep the token "
+        "next to the subject it refers to.",
+    )
+    train_p.add_argument(
+        "--class_prompt",
+        type=str,
+        help="General class description without the unique token, "
+        "e.g., 'a photo of a dog'. Used for prior-preservation during training.",
+    )
+    train_p.add_argument("--batch_size", type=int, default=2, help="Mini batch size")
+    train_p.add_argument("--max_steps", type=int, default=400, help="Training steps")
+    train_p.add_argument(
+        "--learning_rate",
+        type=float,
+        default=2.0e-06,
+        help="Training learning rate, e.g., 2e-6.",
+    )
+    train_p.add_argument(
+        "--prior_preservation",
+        action="store_true",
+        help=(
+            "Turn on prior-preservation loss to keep the subject aligned with "
+            " its class. When enabled, batches include both subject images and"
+            " images generated from a frozen pre-tuning model using a general "
+            "class prompt. Requires batch size >1. Typically used with "
+            "--instance_prompt and --class_prompt."
+        ),
+    )
+
+    # === INFER BRANCH ===
+    infer_p = sub.add_parser("infer", help="Run inference with a trained model")
+    infer_p.add_argument(
+        "--model_name", type=str, required=True, help="Original base model name"
+    )
+    infer_p.add_argument(
+        "--load_path", type=str, required=True, help="Folder containing trained model"
+    )
+    infer_p.add_argument(
+        "--prompt", type=str, required=True, help="Prompt for generation"
+    )
+    infer_p.add_argument(
+        "--negative_prompt",
+        type=str,
+        default="blurry, low quality, watermark, text, jpeg artifacts",
+        help="Negative prompt",
+    )
+    infer_p.add_argument(
+        "--guidance_scale", type=float, default=7.5, help="CFG guidance scale"
+    )
+    infer_p.add_argument("--steps", type=int, default=80, help="Inference steps")
+
+    # Parse normally
+    args, unknown = parser.parse_known_args()
+
+    # Reject unknown flags entirely (optional strictness)
+    if unknown:
+        print(f"Unknown or misplaced arguments: {unknown}", file=sys.stderr)
+        sys.exit(1)
+
+    # --- Train branch
+    if args.mode == "train":
+        input_dir = Path(args.input_folder)
+        save_dir = Path(args.save_folder)
+
+        if not input_dir.is_dir():
+            raise NotADirectoryError(f"Input folder invalid: {input_dir}")
+
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        log.info("\n=== TRAIN MODE ===")
+        log.info("Input arguments: {}".format(args))
+
+        # TODO: Call real training here
+        return
+
+    # --- Inferemce branch
+
+    if args.mode == "infer":
+        model_dir = Path(args.load_path)
+
+        if not model_dir.is_dir():
+            raise NotADirectoryError(f"Model load path invalid: {model_dir}")
+
+        log.info("\n=== Inference MODE ===")
+        log.info("Input arguments: {}".format(args))
+
+        # TODO: Call real inference here
+        return
+
+
+if __name__ == "__main__":
+    main()
