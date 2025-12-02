@@ -27,6 +27,10 @@ dependencies = [
 ]
 
 
+[project.scripts]
+dreambooth = "dreambooth.cli.main:main"
+
+
 [project.optional-dependencies]
 dev = [
     "black",
@@ -49,11 +53,18 @@ line_length = 88
 
 [tool.ruff]
 line-length = 88
+fix = true
 
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
-ignore = ["E501"]
+select = ["E", "F", "I", "B"]
+ignore = []     
+
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
 
 
 [tool.pytest.ini_options]
