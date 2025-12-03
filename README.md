@@ -60,6 +60,16 @@ dreambooth infer --help
 
 ### Inference
 
+```
+ dreambooth infer \
+    --load_path ./saved-model \
+    --prompt "a photo of sks dog in Mars." "an oil paining of sks dog in London." "a sks dog in space." \
+    --guidance_scale 7.5 \
+    --steps 80 \
+    --seed 42 \
+    --output_sample_dir ./generated_images
+```
+
 ## Example Results
 
 ## License
