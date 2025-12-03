@@ -1,12 +1,12 @@
 import argparse
-import logging
 import sys
 from pathlib import Path
 
+from dreambooth.logger.logger_factory import LoggerFactory
 from dreambooth.training.trainer import DreamBoothTrainer
 
-log = logging.getLogger("DiffusionCrafter")
-logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
+LoggerFactory.configure()
+log = LoggerFactory.get_logger()
 
 
 def main():
