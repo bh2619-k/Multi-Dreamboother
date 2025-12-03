@@ -107,6 +107,9 @@ class SDComponents:
             "cpu": list(self.cpu),
         }
 
+    def get_tokenizer_1(self):
+        return self.tokenizer_1
+
     def __post_init__(self):
         names = {"tokenizer_1", "text_encoder_1", "unet", "vae", "noise_scheduler"}
         for label, lst in (
@@ -131,7 +134,7 @@ def _filter_args(source: dict, allowed: list[str]) -> dict:
 
 def build_model_components(model_name: str, **kwargs) -> SDComponents:
     """Dispatch to the appropriate builder based on the base model repo id."""
-    if "stabilityai/stable-diffusion-2-1" in model_name.lower():
+    if "sd2-community/stable-diffusion-2-1" in model_name.lower():
         return _build_stable_diffusion_v2x_base_components(
             model_name=model_name, **kwargs
         )
