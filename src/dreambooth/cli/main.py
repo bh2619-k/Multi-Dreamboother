@@ -164,8 +164,10 @@ def main():
             prior_preservation=args.prior_preservation,
             num_class_images=args.num_class_images,
             class_generation_batch_size=args.class_generation_batch_size,
+            seed=args.seed,
         )
-        # TODO: Call real training here
+        trainer.train()
+
         return
 
     # --- Inferemce branch
