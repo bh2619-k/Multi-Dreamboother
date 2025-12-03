@@ -43,12 +43,13 @@ dreambooth infer --help
 
 ```
  dreambooth train \
-    --model_name stabilityai/stable-diffusion-2-1 \
+    --model_name sd2-community/stable-diffusion-2-1 \
     --input_folder ./input-data/google-dataset/dog \
     --save_folder ./saved-model \
     --train_text_encoder \
     --instance_prompt "a photo of sks dog" \
     --class_prompt "a photo of a dog" \
+    --num_worker 4 \
     --batch_size 2 \
     --max_steps 400 \
     --learning_rate 2.0e-06 \
