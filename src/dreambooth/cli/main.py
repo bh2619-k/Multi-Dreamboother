@@ -2,6 +2,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from dreambooth.data.data_utils import save_images
+from dreambooth.inference.dreambooth_infer import DreamboothFinetunedModelInference
 from dreambooth.logger.logger_factory import LoggerFactory
 from dreambooth.training.trainer import DreamBoothTrainer
 
@@ -109,31 +111,48 @@ def main():
     # === INFER BRANCH ===
     infer_p = sub.add_parser("infer", help="Run inference with a trained model")
     infer_p.add_argument(
-        "--model_name", type=str, required=True, help="Original base model name"
+        "--load_path",
+        type=str,
+        required=True,
+        help='Folder containing trained model (e.g. "./saved_model")',
     )
     infer_p.add_argument(
-        "--load_path", type=str, required=True, help="Folder containing trained model"
-    )
-    infer_p.add_argument(
-        "--prompt", type=str, required=True, help="Prompt for generation"
+        "--prompt",
+        type=str,
+        nargs="+",
+        required=True,
+        help='List of prompts (e.g. "a photo of sks dog in Mars" "an oil paining '
+        'of sks dog in London")',
     )
     infer_p.add_argument(
         "--negative_prompt",
         type=str,
         default="blurry, low quality, watermark, text, jpeg artifacts",
-        help="Negative prompt",
+        help="Negative prompt. " "This is shared for all inputed prompts.",
     )
     infer_p.add_argument(
         "--guidance_scale", type=float, default=7.5, help="CFG guidance scale"
     )
     infer_p.add_argument("--steps", type=int, default=80, help="Inference steps")
+    infer_p.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="seed for reproducibility.",
+    )
+    infer_p.add_argument(
+        "--output_sample_dir",
+        type=str,
+        default="./generated_samples",
+        help="Directory path to store generated images.",
+    )
 
     # Parse normally
     args, unknown = parser.parse_known_args()
 
     # Reject unknown flags entirely (optional strictness)
     if unknown:
-        print(f"Unknown or misplaced arguments: {unknown}", file=sys.stderr)
+        log.error(f"Unknown or misplaced arguments: {unknown}")
         sys.exit(1)
 
     # --- Train branch
@@ -181,8 +200,22 @@ def main():
         log.info("\n=== Inference MODE ===")
         log.info("Input arguments: {}".format(args))
 
-        # TODO: Call real inference here
-        return
+        inference = DreamboothFinetunedModelInference(
+            load_path=args.load_path,
+            prompts=args.prompt,
+            negative_prompt=args.negative_prompt,
+            guidance_scale=args.guidance_scale,
+            steps=args.steps,
+            seed=args.seed,
+        )
+        inference.load_pipe_for_inference()
+        images = inference.generate_images()
+
+        # Save generated images
+        output_sample_dir = Path(args.output_sample_dir)
+        output_sample_dir.mkdir(parents=True, exist_ok=True)
+        saved_paths = save_images(images, output_sample_dir, ext="png", overwrite=True)
+        print(f"[save_images] Saved {len(saved_paths)} image(s) to {output_sample_dir}")
 
 
 if __name__ == "__main__":
