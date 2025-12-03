@@ -335,6 +335,7 @@ class DreamBoothTrainer:
             te.save_pretrained(out_dir / "text_encoder")
 
         # Optional metadata
+        model_res = constants.DefaultModelResolution.model_res[self.model_name]
         torch.save(
             {
                 "training_method": "dreambooth",
@@ -343,6 +344,7 @@ class DreamBoothTrainer:
                 "global_step": int(self.global_step),
                 "instance_prompt": self.instance_prompt,
                 "prior_preservation": self.prior_preservation,
+                "resolution": (model_res, model_res)
             },
             out_dir / "meta.pt",
         )
