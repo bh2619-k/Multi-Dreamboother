@@ -309,7 +309,7 @@ class DreamBoothTrainer:
 
         log.info("Training was finished.")
         progress_bar.close()
-        
+
         self.export_for_inference(out_dir=Path(self.save_folder))
         self._training_active = False
 
