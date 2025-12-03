@@ -23,7 +23,7 @@ def main():
         "--model_name",
         type=str,
         required=True,
-        help="Base HF model repo (e.g. stabilityai/stable-diffusion-2-1)",
+        help="Base HF model repo (e.g. sd2-community/stable-diffusion-2-1)",
     )
     train_p.add_argument(
         "--input_folder",
@@ -52,6 +52,12 @@ def main():
         type=str,
         help="General class description without the unique token, "
         "e.g., 'a photo of a dog'. Used for prior-preservation during training.",
+    )
+    train_p.add_argument(
+        "--num_worker",
+        type=int,
+        default=4,
+        help=("Number of worker processes used by the DataLoader."),
     )
     train_p.add_argument(
         "--batch_size",
@@ -92,6 +98,12 @@ def main():
         type=int,
         default=4,
         help="Batch size used when generating class images for prior preservation.",
+    )
+    train_p.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="seed for reproducibility.",
     )
 
     # === INFER BRANCH ===
@@ -145,6 +157,7 @@ def main():
             train_text_encoder=args.train_text_encoder,
             instance_prompt=args.instance_prompt,
             class_prompt=args.class_prompt,
+            num_worker=args.num_worker,
             batch_size=args.batch_size,
             max_steps=args.max_steps,
             learning_rate=args.learning_rate,
