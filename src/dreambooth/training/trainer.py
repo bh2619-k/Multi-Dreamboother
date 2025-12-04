@@ -35,8 +35,7 @@ class DreamBoothTrainer:
         max_steps: int,
         learning_rate: float,
         prior_preservation: bool,
-        num_class_images: int,
-        class_generation_batch_size: int,
+        class_generation_dir: str,
         seed: int,
     ):
         self.model_name = model_name
@@ -50,8 +49,7 @@ class DreamBoothTrainer:
         self.max_steps = max_steps
         self.learning_rate = learning_rate
         self.prior_preservation = prior_preservation
-        self.num_class_images = num_class_images
-        self.class_generation_batch_size = class_generation_batch_size
+        self.class_generation_dir = Path(class_generation_dir)
         self.seed = int(seed)
 
         self._validate_input_arguments()
@@ -363,6 +361,10 @@ class DreamBoothTrainer:
             )
         if not self.input_folder.is_dir():
             raise NotADirectoryError(f"Input folder invalid: {self.input_folder}")
+        if not any(self.input_folder.iterdir()):
+            raise ValueError(
+                f"Directory containing images should be empty: {self.input_folder}"
+            )
         if not self.save_folder.is_dir():
             raise NotADirectoryError(f"Save folder invalid: {self.save_folder}")
         if not isinstance(self.train_text_encoder, bool):
@@ -401,17 +403,13 @@ class DreamBoothTrainer:
                 "Prior preservation flag should be a boolean, "
                 f"current value is {self.prior_preservation}."
             )
-        if self.num_class_images < 1:
+        if not self.class_generation_dir.is_dir():
+            raise NotADirectoryError(f"Input folder invalid: {self.input_folder}")
+
+        # Directory must not be empty
+        if not any(self.class_generation_dir.iterdir()):
             raise ValueError(
-                "Number of generated image with frozen stable "
-                "diffusion should be greater equal to one."
-                f" Current inputed value: {self.num_class_images}"
-            )
-        if self.class_generation_batch_size < 1:
-            raise ValueError(
-                "Batch size for generating images with frozen stable diffusion"
-                " can not be an integer less than 1. "
-                f"Current batch_size = {self.class_generation_batch_size}."
+                f"Class generation folder is empty: {self.class_generation_dir}"
             )
 
     def inc_global_step(self) -> None:
