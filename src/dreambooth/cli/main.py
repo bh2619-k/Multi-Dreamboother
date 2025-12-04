@@ -1,9 +1,11 @@
 import argparse
+import shutil
 import sys
 from pathlib import Path
 
 from dreambooth.data.data_utils import save_images
 from dreambooth.inference.dreambooth_infer import DreamboothFinetunedModelInference
+from dreambooth.inference.pretrained_infer import PretrainedModelInference
 from dreambooth.logger.logger_factory import LoggerFactory
 from dreambooth.training.trainer import DreamBoothTrainer
 
@@ -92,14 +94,44 @@ def main():
         "--num_class_images",
         type=int,
         default=200,
-        help="Number of class images to generate when using --prior_preservation "
-        "(used for class loss).",
+        help=(
+            "Total number of class images to generate when using --prior_preservation. "
+            "These images are used to compute the class (prior) loss."
+        ),
     )
     train_p.add_argument(
         "--class_generation_batch_size",
         type=int,
-        default=4,
-        help="Batch size used when generating class images for prior preservation.",
+        default=16,
+        help=(
+            "Batch size to use when generating class images for prior preservation. "
+            "Lower values reduce VRAM usage but increase generation time."
+        ),
+    )
+    train_p.add_argument(
+        "--guidance_scale",
+        type=float,
+        default=7.5,
+        help=(
+            "Classifier-free guidance scale used when generating class images with the "
+            "frozen pretrained model for prior preservation. Higher values produce "
+            "sharper, more class-consistent samples but may reduce diversity."
+        ),
+    )
+    train_p.add_argument(
+        "--infer_steps",
+        type=int,
+        default=80,
+        help="Number of diffusion steps used to generate class images for prior preservation.",
+    )
+    train_p.add_argument(
+        "--class_generation_dir",
+        type=str,
+        default="./frozen_model_generation_for_pr_prsv",
+        help=(
+            "Directory where generated class images will be stored when "
+            "prior preservation is enabled."
+        ),
     )
     train_p.add_argument(
         "--seed",
@@ -176,6 +208,33 @@ def main():
         log.info("\n=== TRAIN MODE ===")
         log.info("Input arguments: {}".format(args))
 
+        # If prior preservation is no, generate samples
+        # with frozen model
+        if args.prior_preservation:
+
+            # Create directory for saving generated images with
+            # pretrained model
+            class_generation_dir = Path(args.class_generation_dir)
+            class_generation_dir.mkdir(parents=True, exist_ok=True)
+            # Remove all contents inside the directory
+            for item in class_generation_dir.iterdir():
+                if item.is_file() or item.is_symlink():
+                    item.unlink()
+                elif item.is_dir():
+                    shutil.rmtree(item)
+
+            frozen_pretrained_model = PretrainedModelInference(
+                model_name=args.model_name,
+                prompts=[args.class_prompt] * args.num_class_images,
+                batch_size=args.class_generation_batch_size,
+                guidance_scale=args.guidance_scale,
+                steps=args.infer_steps,
+                seed=args.seed,
+                save_folder=args.class_generation_dir,
+            )
+            frozen_pretrained_model.load_pipe_for_inference()
+            frozen_pretrained_model.generate_and_save_images()
+
         # Dreambooth trainer object
         trainer = DreamBoothTrainer(
             model_name=args.model_name,
@@ -189,8 +248,7 @@ def main():
             max_steps=args.max_steps,
             learning_rate=args.learning_rate,
             prior_preservation=args.prior_preservation,
-            num_class_images=args.num_class_images,
-            class_generation_batch_size=args.class_generation_batch_size,
+            class_generation_dir=args.class_generation_dir,
             seed=args.seed,
         )
         trainer.train()
