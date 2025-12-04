@@ -12,7 +12,7 @@ def get_transform_image_to_tensor(model_name: str, train_inference: str = "train
     Return a torchvision transform pipeline depending on model and mode.
 
     Args:
-        model_name (str): Name of the model (e.g. 'sd2-community/stable-diffusion-2-1')
+        model_name (str): Name of the model (e.g. 'stable-diffusion-v1-5/stable-diffusion-v1-5')
         train_inference (str): 'train', 'val', or 'test'
 
     Returns:
@@ -22,9 +22,9 @@ def get_transform_image_to_tensor(model_name: str, train_inference: str = "train
         ValueError: If the model name is not supported.
     """
     # --- Determine image size based on known models ---
-    if "sd2-community/stable-diffusion-2-1" in model_name:
+    if "stable-diffusion-v1-5/stable-diffusion-v1-5" in model_name:
         image_size = constants.DefaultModelResolution.model_res[
-            "sd2-community/stable-diffusion-2-1"
+            "stable-diffusion-v1-5/stable-diffusion-v1-5"
         ]
     else:
         raise ValueError(

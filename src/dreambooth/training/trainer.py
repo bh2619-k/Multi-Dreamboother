@@ -344,7 +344,7 @@ class DreamBoothTrainer:
                 "global_step": int(self.global_step),
                 "instance_prompt": self.instance_prompt,
                 "prior_preservation": self.prior_preservation,
-                "resolution": (model_res, model_res)
+                "resolution": (model_res, model_res),
             },
             out_dir / "meta.pt",
         )

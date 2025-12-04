@@ -134,8 +134,8 @@ def _filter_args(source: dict, allowed: list[str]) -> dict:
 
 def build_model_components(model_name: str, **kwargs) -> SDComponents:
     """Dispatch to the appropriate builder based on the base model repo id."""
-    if "sd2-community/stable-diffusion-2-1" in model_name.lower():
-        return _build_stable_diffusion_v2x_base_components(
+    if "stable-diffusion-v1-5/stable-diffusion-v1-5" in model_name.lower():
+        return _build_stable_diffusion_v1x_base_components(
             model_name=model_name, **kwargs
         )
     else:
@@ -145,10 +145,10 @@ def build_model_components(model_name: str, **kwargs) -> SDComponents:
         )
 
 
-def _build_stable_diffusion_v2x_base_components(
+def _build_stable_diffusion_v1x_base_components(
     model_name: str, **kwargs
 ) -> SDComponents:
-    """Build Stable Diffusion 1.x / 2.x model components directly (no pipeline)
+    """Build Stable Diffusion 1.x model components directly (no pipeline)
     for DreamBooth training.
 
     Loads the tokenizer, text encoder, VAE, U-Net, and noise scheduler,
