@@ -43,7 +43,7 @@ dreambooth infer --help
 
 ```
  dreambooth train \
-    --model_name sd2-community/stable-diffusion-2-1 \
+    --model_name stable-diffusion-v1-5/stable-diffusion-v1-5 \
     --input_folder ./input-data/google-dataset/dog \
     --save_folder ./saved-model \
     --train_text_encoder \
@@ -63,7 +63,13 @@ dreambooth infer --help
 ```
  dreambooth infer \
     --load_path ./saved-model \
-    --prompt "a photo of sks dog in Mars." "an oil paining of sks dog in London." "a sks dog in space." \
+    --prompt "a high-resolution photo of sks dog standing on the surface of Mars, dramatic red landscape, sharp details" \
+             "a detailed oil painting of sks dog in London, Big Ben in the background, rich colors, artistic brush strokes" \
+             "sks dog floating in outer space, stars and nebulae in the background, cinematic lighting" \
+             "sks dog in Middle Earth, epic fantasy scenery, lush green valleys, Tolkien style" \
+             "a sks dog with blue hat" \
+    --negative_prompt "blurry, low quality, watermark, text, jpeg artifacts" \
+    --num_img_per_prompt 4 \
     --guidance_scale 7.5 \
     --steps 80 \
     --seed 42 \
@@ -71,5 +77,6 @@ dreambooth infer --help
 ```
 
 ## Example Results
+
 
 ## License
