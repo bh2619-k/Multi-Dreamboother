@@ -25,7 +25,7 @@ def main():
         "--model_name",
         type=str,
         required=True,
-        help="Base HF model repo (e.g. sd2-community/stable-diffusion-2-1)",
+        help="Base HF model repo (e.g. stable-diffusion-v1-5/stable-diffusion-v1-5)",
     )
     train_p.add_argument(
         "--input_folder",
@@ -128,7 +128,15 @@ def main():
         "--negative_prompt",
         type=str,
         default="blurry, low quality, watermark, text, jpeg artifacts",
-        help="Negative prompt. " "This is shared for all inputed prompts.",
+        help="Negative prompt. This is shared for all inputed prompts.",
+    )
+    infer_p.add_argument(
+        "--num_img_per_prompt",
+        type=int,
+        default=1,
+        help="Number of images to generate for each prompt. "
+        "For example, with 3 prompts and --num_img_per_prompt 2, "
+        "a total of 6 images will be produced.",
     )
     infer_p.add_argument(
         "--guidance_scale", type=float, default=7.5, help="CFG guidance scale"
@@ -204,6 +212,7 @@ def main():
             load_path=args.load_path,
             prompts=args.prompt,
             negative_prompt=args.negative_prompt,
+            num_img_per_prompt=args.num_img_per_prompt,
             guidance_scale=args.guidance_scale,
             steps=args.steps,
             seed=args.seed,

@@ -10,7 +10,6 @@ from accelerate import Accelerator
 from accelerate.utils import set_seed
 from diffusers import (
     DDIMScheduler,
-    DPMSolverMultistepScheduler,
     StableDiffusionPipeline,
     UNet2DConditionModel,
 )
@@ -30,6 +29,7 @@ class DreamboothFinetunedModelInference:
         load_path: str,
         prompts: list[str],
         negative_prompt: str,
+        num_img_per_prompt: int,
         guidance_scale: float,
         steps: int,
         seed: int,
@@ -38,6 +38,7 @@ class DreamboothFinetunedModelInference:
         self.load_path = Path(load_path)
         self.prompts = prompts
         self.negative_prompt = negative_prompt
+        self.num_img_per_prompt = num_img_per_prompt
         self.guidance_scale = guidance_scale
         self.steps = steps
         self.seed = seed
@@ -135,8 +136,7 @@ class DreamboothFinetunedModelInference:
 
         steps = self.steps
         guidance = self.guidance_scale
-        height = 768
-        width = 768
+        height, width = self.trained_model_attrs["resolution"]
 
         all_images: list[Image.Image] = []
 
@@ -148,7 +148,7 @@ class DreamboothFinetunedModelInference:
                 guidance_scale=guidance,
                 height=height,
                 width=width,
-                num_images_per_prompt=1,
+                num_images_per_prompt=self.num_img_per_prompt,
                 output_type="pil",
             )
 
@@ -204,6 +204,14 @@ class DreamboothFinetunedModelInference:
             raise ValueError(
                 "Negative prompt should be a non-empty valid strings. "
                 f"Current value: {self.negative_prompt}, "
+            )
+        if not isinstance(self.num_img_per_prompt, int) or not (
+            0 < self.num_img_per_prompt <= 100
+        ):
+            raise ValueError(
+                "Number of generated images per prompt should be an int "
+                "number between 0 and 100. "
+                f"Current value is {self.num_img_per_prompt}"
             )
         if not isinstance(self.guidance_scale, (int, float)) or not (
             0 <= self.guidance_scale <= 10
