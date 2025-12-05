@@ -12,8 +12,8 @@ from accelerate.utils import tqdm as accel_tqdm
 from torch.utils.data import DataLoader
 
 from dreambooth import constants
-from dreambooth.data.dataloader import get_image_collection_const_prompt_dataloader
 from dreambooth.data.data_utils import merge_batches
+from dreambooth.data.dataloader import get_image_collection_const_prompt_dataloader
 from dreambooth.logger.logger_factory import LoggerFactory
 from dreambooth.model.factory import SDComponents, build_model_components
 
@@ -193,7 +193,12 @@ class DreamBoothTrainer:
 
         # Unpack back: modules (same order), then optimizer, then dataloader
         if self.prior_preservation:
-            *prepared_modules, self.optimizer, self.train_data_loader, self.frozen_images_loader = prepared
+            (
+                *prepared_modules,
+                self.optimizer,
+                self.train_data_loader,
+                self.frozen_images_loader,
+            ) = prepared
         else:
             *prepared_modules, self.optimizer, self.train_data_loader = prepared
         for (name, _), wrapped in zip(trainable_pairs, prepared_modules, strict=False):
@@ -326,27 +331,31 @@ class DreamBoothTrainer:
         done = False
         while not done:
 
-                batch_i_subject_data = next(self.infinite_loader(loader=train_data_loader))
-                batch_i_frozen_data = next(self.infinite_loader(loader=frozen_images_loader))
-                batch_i = merge_batches(batch_a=batch_i_subject_data, batch_b=batch_i_frozen_data)
+            batch_i_subject_data = next(self.infinite_loader(loader=train_data_loader))
+            batch_i_frozen_data = next(
+                self.infinite_loader(loader=frozen_images_loader)
+            )
+            batch_i = merge_batches(
+                batch_a=batch_i_subject_data, batch_b=batch_i_frozen_data
+            )
 
-                # Forward and backward pass with one mini batch
-                loss = self.train_step(batch=batch_i)
-                losses.append(loss)
+            # Forward and backward pass with one mini batch
+            loss = self.train_step(batch=batch_i)
+            losses.append(loss)
 
-                progress_bar.update(1)
-                progress_bar.set_postfix(
-                    {
-                        "loss_last": float(losses[-1]),
-                        "loss_win_10": float(torch.mean(torch.tensor(losses[-10:]))),
-                        "loss_win_50": float(torch.mean(torch.tensor(losses[-50:]))),
-                        "loss_win_all": float(torch.mean(torch.tensor(losses))),
-                    }
-                )
+            progress_bar.update(1)
+            progress_bar.set_postfix(
+                {
+                    "loss_last": float(losses[-1]),
+                    "loss_win_10": float(torch.mean(torch.tensor(losses[-10:]))),
+                    "loss_win_50": float(torch.mean(torch.tensor(losses[-50:]))),
+                    "loss_win_all": float(torch.mean(torch.tensor(losses))),
+                }
+            )
 
-                if self.get_global_step() >= self.max_steps:
-                    done = True
-                    break
+            if self.get_global_step() >= self.max_steps:
+                done = True
+                break
 
         log.info("Training was finished.")
         progress_bar.close()
