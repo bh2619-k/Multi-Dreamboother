@@ -1,9 +1,9 @@
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
-
 import yaml
 from PIL import Image
 
@@ -225,6 +225,21 @@ def read_yaml_config(
 
     return config
 
+def remove_content_inside_dir(dir: Path):
+    """Remove all files, symlinks, and subdirectories inside a directory.
+
+    Args:
+        dir (Path): Path to the directory whose contents will be removed.
+
+    Raises:
+        OSError: If a file or directory cannot be removed.
+    """
+    # Remove all contents inside the directory
+    for item in dir.iterdir():
+        if item.is_file() or item.is_symlink():
+            item.unlink()
+        elif item.is_dir():
+            shutil.rmtree(item)
 
 def merge_batches(batch_a: dict, batch_b: dict):
     merged = {}
