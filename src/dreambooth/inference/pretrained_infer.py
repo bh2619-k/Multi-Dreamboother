@@ -144,7 +144,7 @@ class PretrainedModelInference:
 
         for images in self.generate_image_batches():
             saved_paths = save_images(
-                images, self.save_folder, ext="png", overwrite=True
+                images, self.save_folder, ext="png", overwrite=False
             )
 
             total_generated += len(saved_paths)
