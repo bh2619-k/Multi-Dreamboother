@@ -2,6 +2,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
+import torch
+
 import yaml
 from PIL import Image
 
@@ -222,3 +224,19 @@ def read_yaml_config(
         config.args = SimpleNamespace(**args_dict)
 
     return config
+
+
+def merge_batches(batch_a: dict, batch_b: dict):
+    merged = {}
+
+    # Concatenate pixel_values
+    merged["pixel_values"] = torch.cat(
+        [batch_a["pixel_values"], batch_b["pixel_values"]], dim=0
+    )
+
+    # Concatenate input_ids
+    merged["input_ids"] = torch.cat(
+        [batch_a["input_ids"], batch_b["input_ids"]], dim=0
+    )
+
+    return merged
