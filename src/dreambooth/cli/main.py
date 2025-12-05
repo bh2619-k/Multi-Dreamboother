@@ -3,7 +3,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from dreambooth.data.data_utils import save_images
+from dreambooth.data.data_utils import save_images, remove_content_inside_dir
 from dreambooth.inference.dreambooth_infer import DreamboothFinetunedModelInference
 from dreambooth.inference.pretrained_infer import PretrainedModelInference
 from dreambooth.logger.logger_factory import LoggerFactory
@@ -134,6 +134,15 @@ def main():
         ),
     )
     train_p.add_argument(
+        "--reuse_class_generation_dir",
+        action="store_true",
+        help=(
+            "If the directory used to store generated class images already exists "
+            "when prior preservation is enabled, reuse the existing images instead "
+            "of generating new ones."
+        ),
+    )
+    train_p.add_argument(
         "--seed",
         type=int,
         default=42,
@@ -197,13 +206,14 @@ def main():
 
     # --- Train branch
     if args.mode == "train":
-        input_dir = Path(args.input_folder)
-        save_dir = Path(args.save_folder)
 
+        input_dir = Path(args.input_folder)
         if not input_dir.is_dir():
             raise NotADirectoryError(f"Input folder invalid: {input_dir}")
 
+        save_dir = Path(args.save_folder)
         save_dir.mkdir(parents=True, exist_ok=True)
+        remove_content_inside_dir(dir=save_dir)
 
         log.info("\n=== TRAIN MODE ===")
         log.info("Input arguments: {}".format(args))
@@ -211,29 +221,25 @@ def main():
         # If prior preservation is no, generate samples
         # with frozen model
         if args.prior_preservation:
+            if not args.reuse_class_generation_dir:
+                # Create directory for saving generated images with
+                # pretrained model
+                class_generation_dir = Path(args.class_generation_dir)
+                class_generation_dir.mkdir(parents=True, exist_ok=True)
+                # Remove all contents inside the directory
+                remove_content_inside_dir(dir=class_generation_dir)
 
-            # Create directory for saving generated images with
-            # pretrained model
-            class_generation_dir = Path(args.class_generation_dir)
-            class_generation_dir.mkdir(parents=True, exist_ok=True)
-            # Remove all contents inside the directory
-            for item in class_generation_dir.iterdir():
-                if item.is_file() or item.is_symlink():
-                    item.unlink()
-                elif item.is_dir():
-                    shutil.rmtree(item)
-
-            frozen_pretrained_model = PretrainedModelInference(
-                model_name=args.model_name,
-                prompts=[args.class_prompt] * args.num_class_images,
-                batch_size=args.class_generation_batch_size,
-                guidance_scale=args.guidance_scale,
-                steps=args.infer_steps,
-                seed=args.seed,
-                save_folder=args.class_generation_dir,
-            )
-            frozen_pretrained_model.load_pipe_for_inference()
-            frozen_pretrained_model.generate_and_save_images()
+                frozen_pretrained_model = PretrainedModelInference(
+                    model_name=args.model_name,
+                    prompts=[args.class_prompt] * args.num_class_images,
+                    batch_size=args.class_generation_batch_size,
+                    guidance_scale=args.guidance_scale,
+                    steps=args.infer_steps,
+                    seed=args.seed,
+                    save_folder=args.class_generation_dir,
+                )
+                frozen_pretrained_model.load_pipe_for_inference()
+                frozen_pretrained_model.generate_and_save_images()
 
         # Dreambooth trainer object
         trainer = DreamBoothTrainer(
@@ -281,6 +287,7 @@ def main():
         # Save generated images
         output_sample_dir = Path(args.output_sample_dir)
         output_sample_dir.mkdir(parents=True, exist_ok=True)
+        remove_content_inside_dir(dir=output_sample_dir)
         saved_paths = save_images(images, output_sample_dir, ext="png", overwrite=True)
         print(f"[save_images] Saved {len(saved_paths)} image(s) to {output_sample_dir}")
 
