@@ -17,7 +17,7 @@ from diffusers import (
 from PIL import Image
 
 from dreambooth import constants
-from dreambooth.data.data_utils import save_images
+from dreambooth.data.data_utils import directory_exists, directory_is_empty, save_images
 from dreambooth.logger.logger_factory import LoggerFactory
 
 log = LoggerFactory.get_logger()
@@ -192,7 +192,7 @@ class PretrainedModelInference:
         for str_i in self.prompts:
             if not isinstance(str_i, str) or len(str_i) == 0:
                 raise ValueError(
-                    "Input prompts should be a non-empty valid strings. "
+                    "Each prompt must be a non-empty string. "
                     f"Current value: {self.prompts}, "
                     f"{str_i} violates the condition."
                 )
@@ -208,10 +208,12 @@ class PretrainedModelInference:
                 "Guidance scale should be a float number between 0 and 10. "
                 f"Current value is {self.guidance_scale}"
             )
-        if not isinstance(self.steps, int) and not (1 <= self.steps <= 1000):
+        if not (isinstance(self.steps, int) and (1 <= self.steps <= 1000)):
             raise ValueError(
                 "Inference steps should be an integer in range [1, 1000]. "
                 f"Current value is {self.steps}"
             )
-        if not self.save_folder.is_dir():
+        if not directory_exists(path=self.save_folder):
             raise NotADirectoryError(f"Save folder invalid: {self.save_folder}")
+        if not directory_is_empty(path=self.save_folder):
+            raise ValueError(f"Save folder should be empty: {self.save_folder}")

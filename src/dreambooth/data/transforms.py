@@ -12,7 +12,8 @@ def get_transform_image_to_tensor(model_name: str, train_inference: str = "train
     Return a torchvision transform pipeline depending on model and mode.
 
     Args:
-        model_name (str): Name of the model (e.g. 'stable-diffusion-v1-5/stable-diffusion-v1-5')
+        model_name (str): Name of the model 
+            (e.g. 'stable-diffusion-v1-5/stable-diffusion-v1-5')
         train_inference (str): 'train', 'val', or 'test'
 
     Returns:

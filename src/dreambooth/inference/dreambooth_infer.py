@@ -16,6 +16,7 @@ from diffusers import (
 from PIL import Image
 from transformers import CLIPTextModel
 
+from dreambooth.data.data_utils import directory_exists
 from dreambooth.logger.logger_factory import LoggerFactory
 
 log = LoggerFactory.get_logger()
@@ -180,9 +181,9 @@ class DreamboothFinetunedModelInference:
     def _validate_input_arguments(
         self,
     ):
-        if not self.load_path.is_dir():
+        if not directory_exists(path=self.load_path):
             raise NotADirectoryError(
-                f"Folder to load saved model is " f"invalid: {self.load_path}"
+                "Folder to load saved model is " f"invalid: {self.load_path}"
             )
         if not isinstance(self.prompts, list):
             raise ValueError(
@@ -221,7 +222,7 @@ class DreamboothFinetunedModelInference:
                 f"Current value is {self.guidance_scale}"
             )
 
-        if not isinstance(self.steps, int) and not (1 <= self.steps <= 1000):
+        if not (isinstance(self.steps, int) and (1 <= self.steps <= 1000)):
             raise ValueError(
                 "Inference steps should be an integer in range [1, 1000]. "
                 f"Current value is {self.steps}"

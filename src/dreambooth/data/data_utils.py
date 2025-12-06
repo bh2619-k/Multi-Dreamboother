@@ -241,7 +241,47 @@ def remove_content_inside_dir(dir: Path):
         elif item.is_dir():
             shutil.rmtree(item)
 
+
+def directory_exists(path: Path) -> bool:
+    """Check whether a path exists and is a directory.
+
+    Args:
+        path: Directory path.
+
+    Returns:
+        True if the directory exists, False otherwise.
+    """
+    return path.exists() and path.is_dir()
+
+
+def directory_is_empty(path: Path) -> bool:
+    """Check whether a directory is empty.
+
+    Args:
+        path: Directory path.
+
+    Returns:
+        True if the directory is empty.
+
+    Raises:
+        ValueError: If the path does not exist or is not a directory.
+    """
+    if not directory_exists(path):
+        raise ValueError(f"Path does not exist or is not a directory: {path}")
+
+    # Any items inside?
+    return not any(path.iterdir())
+
 def merge_batches(batch_a: dict, batch_b: dict):
+    """Merge two training batches by concatenating their fields.
+
+    Args:
+        batch_a: First batch containing "pixel_values" and "input_ids".
+        batch_b: Second batch containing "pixel_values" and "input_ids".
+
+    Returns:
+        A new dict with concatenated "pixel_values" and "input_ids".
+    """
     merged = {}
 
     # Concatenate pixel_values

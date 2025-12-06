@@ -1,9 +1,13 @@
 import argparse
-import shutil
 import sys
 from pathlib import Path
 
-from dreambooth.data.data_utils import save_images, remove_content_inside_dir
+from dreambooth.data.data_utils import (
+    directory_exists,
+    directory_is_empty,
+    remove_content_inside_dir,
+    save_images,
+)
 from dreambooth.inference.dreambooth_infer import DreamboothFinetunedModelInference
 from dreambooth.inference.pretrained_infer import PretrainedModelInference
 from dreambooth.logger.logger_factory import LoggerFactory
@@ -122,7 +126,8 @@ def main():
         "--infer_steps",
         type=int,
         default=80,
-        help="Number of diffusion steps used to generate class images for prior preservation.",
+        help="Number of diffusion steps used to generate class images for prior "
+        "preservation.",
     )
     train_p.add_argument(
         "--class_generation_dir",
@@ -208,8 +213,10 @@ def main():
     if args.mode == "train":
 
         input_dir = Path(args.input_folder)
-        if not input_dir.is_dir():
+        if not directory_exists(path=input_dir):
             raise NotADirectoryError(f"Input folder invalid: {input_dir}")
+        if directory_is_empty(path=input_dir):
+            raise NotADirectoryError(f"Input folder is empty: {input_dir}")
 
         save_dir = Path(args.save_folder)
         save_dir.mkdir(parents=True, exist_ok=True)
@@ -218,13 +225,13 @@ def main():
         log.info("\n=== TRAIN MODE ===")
         log.info("Input arguments: {}".format(args))
 
-        # If prior preservation is no, generate samples
-        # with frozen model
+        # If prior preservation is on, generate samples
+        # with pretrained frozen model
         if args.prior_preservation:
+            class_generation_dir = Path(args.class_generation_dir)
             if not args.reuse_class_generation_dir:
                 # Create directory for saving generated images with
-                # pretrained model
-                class_generation_dir = Path(args.class_generation_dir)
+                # frozen pretrained model
                 class_generation_dir.mkdir(parents=True, exist_ok=True)
                 # Remove all contents inside the directory
                 remove_content_inside_dir(dir=class_generation_dir)
@@ -240,6 +247,24 @@ def main():
                 )
                 frozen_pretrained_model.load_pipe_for_inference()
                 frozen_pretrained_model.generate_and_save_images()
+            else:
+                # In case of resuing previously generated images with
+                # frozon model, the folder should exist
+                if not directory_exists(path=class_generation_dir):
+                    raise NotADirectoryError(
+                        "Folder for generated images by frozen model"
+                        f"invalid: {class_generation_dir}"
+                    )
+                if directory_is_empty(path=class_generation_dir):
+                    raise NotADirectoryError(
+                        "Folder for generated images by frozen model"
+                        f" is empty: {class_generation_dir}"
+                    )
+                log.info(
+                    "Previously generated images with pretrained"
+                    f" frozen model in folder {class_generation_dir} "
+                    f"will be used."
+                )
 
         # Dreambooth trainer object
         trainer = DreamBoothTrainer(

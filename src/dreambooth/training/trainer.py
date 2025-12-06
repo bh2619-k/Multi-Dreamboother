@@ -12,7 +12,11 @@ from accelerate.utils import tqdm as accel_tqdm
 from torch.utils.data import DataLoader
 
 from dreambooth import constants
-from dreambooth.data.data_utils import merge_batches
+from dreambooth.data.data_utils import (
+    directory_exists,
+    directory_is_empty,
+    merge_batches,
+)
 from dreambooth.data.dataloader import get_image_collection_const_prompt_dataloader
 from dreambooth.logger.logger_factory import LoggerFactory
 from dreambooth.model.factory import SDComponents, build_model_components
@@ -411,13 +415,13 @@ class DreamBoothTrainer:
                 f"Unsupported model: '{self.model_name}'. "
                 f"Supported models: {constants.SupportedModels.hf_ids}"
             )
-        if not self.input_folder.is_dir():
+        if not directory_exists(path=self.input_folder):
             raise NotADirectoryError(f"Input folder invalid: {self.input_folder}")
-        if not any(self.input_folder.iterdir()):
+        if directory_is_empty(path=self.input_folder):
             raise ValueError(
-                f"Directory containing images should be empty: {self.input_folder}"
+                f"Directory containing images should not be empty: {self.input_folder}"
             )
-        if not self.save_folder.is_dir():
+        if not directory_exists(path=self.save_folder):
             raise NotADirectoryError(f"Save folder invalid: {self.save_folder}")
         if not isinstance(self.train_text_encoder, bool):
             raise ValueError("train_text_encoder should be a boolean.")
@@ -455,11 +459,11 @@ class DreamBoothTrainer:
                 "Prior preservation flag should be a boolean, "
                 f"current value is {self.prior_preservation}."
             )
-        if not self.class_generation_dir.is_dir():
+        if not directory_exists(path=self.class_generation_dir):
             raise NotADirectoryError(f"Input folder invalid: {self.input_folder}")
 
         # Directory must not be empty
-        if not any(self.class_generation_dir.iterdir()):
+        if directory_is_empty(path=self.class_generation_dir):
             raise ValueError(
                 f"Class generation folder is empty: {self.class_generation_dir}"
             )
