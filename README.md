@@ -1,6 +1,8 @@
 # DreamBooth
 
 ## Introduction
+This repository provides a clean implementation of DreamBooth, a technique for fine-tuning text-to-image diffusion models (e.g., Stable Diffusion) on a specific subject using only a few reference images.
+It is designed for easy training with a simple CLI (dreambooth train) and inference (dreambooth infer). The allowing you to plug in your own datasets, prompts, and training settings.
 
 ## Quick Installation
 
@@ -16,13 +18,13 @@ make venv
 source .venv/bin/activate
 ```
 
-### 3. Install GPU version (CUDA 12.8)
+### 3. Install Dependencies and CUDA-Enabled PyTorch
 
 ``` bash
 make install-gpu
 make install-dev
 ```
-If you want to change the version of cuda enabled torch, you can modify install-gpu section in `Makefile`.
+If you want to change the version of cuda enabled torch (currently CUDA 12.8), you can modify install-gpu section in `Makefile`.
 
 ### 4. Verify GPU support
 
@@ -39,44 +41,10 @@ dreambooth train --help
 dreambooth infer --help
 ```
 
-### Train
-
-```
- dreambooth train \
-    --model_name stable-diffusion-v1-5/stable-diffusion-v1-5 \
-    --input_folder ./input-data/google-dataset/dog \
-    --save_folder ./saved-model \
-    --train_text_encoder \
-    --instance_prompt "a photo of sks dog" \
-    --class_prompt "a photo of a dog" \
-    --num_worker 4 \
-    --batch_size 2 \
-    --max_steps 400 \
-    --learning_rate 2.0e-06 \
-    --prior_preservation \
-    --num_class_images 200 \
-    --class_generation_batch_size 20
-```
-
-### Inference
-
-```
- dreambooth infer \
-    --load_path ./saved-model \
-    --prompt "a high-resolution photo of sks dog standing on the surface of Mars, dramatic red landscape, sharp details" \
-             "a detailed oil painting of sks dog in London, Big Ben in the background, rich colors, artistic brush strokes" \
-             "sks dog floating in outer space, stars and nebulae in the background, cinematic lighting" \
-             "sks dog in Middle Earth, epic fantasy scenery, lush green valleys, Tolkien style" \
-             "a sks dog with blue hat" \
-    --negative_prompt "blurry, low quality, watermark, text, jpeg artifacts" \
-    --num_img_per_prompt 4 \
-    --guidance_scale 7.5 \
-    --steps 80 \
-    --seed 42 \
-    --output_sample_dir ./generated_images
-```
+For **examples** of how to use ```dreambooth train``` and ```dreambooth infer```, as well as some generated images, please see the ***```sample``` folder***.
 
 ## Example Results
 
 
 ## License
+Released under the MIT License. For pretrained models or datasets, please check their respective licenses.
