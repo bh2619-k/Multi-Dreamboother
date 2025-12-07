@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import math
 import os
 import random
 from pathlib import Path
+from typing import Iterator
 
 import numpy as np
 import torch
@@ -16,7 +18,11 @@ from diffusers import (
 from PIL import Image
 from transformers import CLIPTextModel
 
-from dreambooth.data.data_utils import directory_exists
+from dreambooth.data.data_utils import (
+    directory_exists,
+    directory_is_empty,
+    save_image_batch,
+)
 from dreambooth.logger.logger_factory import LoggerFactory
 
 log = LoggerFactory.get_logger()
@@ -31,6 +37,7 @@ class DreamboothFinetunedModelInference:
         prompts: list[str],
         negative_prompt: str,
         num_img_per_prompt: int,
+        batch_size: int,
         guidance_scale: float,
         steps: int,
         seed: int,
@@ -38,6 +45,7 @@ class DreamboothFinetunedModelInference:
 
         self.load_path = Path(load_path)
         self.prompts = prompts
+        self.batch_size = batch_size
         self.negative_prompt = negative_prompt
         self.num_img_per_prompt = num_img_per_prompt
         self.guidance_scale = guidance_scale
@@ -125,43 +133,84 @@ class DreamboothFinetunedModelInference:
         return self.pipe
 
     # --------------------------- Generation -----------------------------------
-    def generate_images(self) -> list[Image.Image]:
-        """
-        Generate images from text prompts using a diffusion pipeline.
+    def generate_image_batches(self) -> Iterator[list[Image.Image]]:
+        """Yield batches of generated images using the loaded diffusion pipeline.
+
+        Returns:
+            Iterator[list[Image.Image]]: Each iteration yields a list of PIL images.
         """
         pipe = self.get_pipe()
 
         # Build the full prompt lists
-        all_prompts = self.prompts
+        all_prompts = []
+        for promt_i in self.prompts:
+            all_prompts += [promt_i] * self.num_img_per_prompt
         all_neg_prompts = [self.negative_prompt] * len(all_prompts)
 
         steps = self.steps
         guidance = self.guidance_scale
         height, width = self.trained_model_attrs["resolution"]
 
-        all_images: list[Image.Image] = []
+        batch_size = self.batch_size
+        total_prompts = len(all_prompts)
+        number_of_batches = math.ceil(total_prompts / batch_size)
 
-        with torch.inference_mode():
-            out = pipe(
-                prompt=all_prompts,
-                negative_prompt=all_neg_prompts,
-                num_inference_steps=steps,
-                guidance_scale=guidance,
-                height=height,
-                width=width,
-                num_images_per_prompt=self.num_img_per_prompt,
-                output_type="pil",
+        for batch_i in range(number_of_batches):
+            with torch.inference_mode():
+
+                start = batch_i * batch_size
+                end = min(start + batch_size, total_prompts)
+
+                batch_prompts = all_prompts[start:end]
+                batch_neg_prompts = all_neg_prompts[start:end]
+
+                out = pipe(
+                    prompt=batch_prompts,
+                    negative_prompt=batch_neg_prompts,
+                    num_inference_steps=steps,
+                    guidance_scale=guidance,
+                    height=height,
+                    width=width,
+                    num_images_per_prompt=1,
+                    output_type="pil",
+                )
+
+                images = out["images"] if isinstance(out, dict) else out.images
+                if not images:
+                    raise RuntimeError("Pipeline returned no images")
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+            yield images
+
+    def generate_and_save_images(self, save_folder: Path) -> None:
+        """
+        Generate images in batches and save them to disk,
+        logging progress every 20 images.
+        """
+        if not directory_exists(path=save_folder):
+            raise NotADirectoryError(f"Save folder invalid: {save_folder}")
+        if not directory_is_empty(path=save_folder):
+            raise ValueError(f"Save folder should be empty: {save_folder}")
+
+        total_generated = 0
+
+        for images in self.generate_image_batches():
+            images_dic = {
+                f"image_{idx+total_generated}": image_i
+                for idx, image_i in enumerate(images)
+            }
+            saved_paths = save_image_batch(
+                images_dic, out_dir=save_folder, ext="png", overwrite=False
             )
+            total_generated += len(saved_paths)
 
-            images = out["images"] if isinstance(out, dict) else out.images
-            if not images:
-                raise RuntimeError("Pipeline returned no images")
-            all_images.extend(images)
+            # Log every 20 images
+            if total_generated % 20 == 0:
+                log.info(f"{total_generated} images generated and saved so far.")
 
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
-        return all_images
+        log.info(f"Generation complete. Total images saved: {total_generated}")
 
     # --------------------------- Other -----------------------------------
 
@@ -183,11 +232,15 @@ class DreamboothFinetunedModelInference:
     ):
         if not directory_exists(path=self.load_path):
             raise NotADirectoryError(
-                "Folder to load saved model is " f"invalid: {self.load_path}"
+                f"Folder to load saved model is invalid: {self.load_path}"
+            )
+        if directory_is_empty(path=self.load_path):
+            raise NotADirectoryError(
+                f"Folder to load saved model is empty: {self.load_path}"
             )
         if not isinstance(self.prompts, list):
             raise ValueError(
-                "Input prompts should be a list. " f"Current value: {self.prompts}"
+                f"Input prompts should be a list. Current value: {self.prompts}"
             )
         if len(self.prompts) == 0:
             raise ValueError(
@@ -206,8 +259,13 @@ class DreamboothFinetunedModelInference:
                 "Negative prompt should be a non-empty valid strings. "
                 f"Current value: {self.negative_prompt}, "
             )
+        if not (isinstance(self.batch_size, int) and self.batch_size >= 1):
+            raise ValueError(
+                "Inference batch size should be an integer greater than 0. "
+                f"Current batch_size = {self.batch_size}."
+            )
         if not isinstance(self.num_img_per_prompt, int) or not (
-            0 < self.num_img_per_prompt <= 100
+            1 < self.num_img_per_prompt <= 100
         ):
             raise ValueError(
                 "Number of generated images per prompt should be an int "
