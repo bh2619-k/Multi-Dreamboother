@@ -42,7 +42,6 @@ def get_transform_image_to_tensor(model_name: str, train_inference: str = "train
                     interpolation=T.InterpolationMode.BILINEAR,
                     antialias=True,
                 ),
-                T.RandomHorizontalFlip(),
                 T.ToTensor(),
                 T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
             ]
