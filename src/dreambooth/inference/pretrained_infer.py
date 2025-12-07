@@ -196,9 +196,9 @@ class PretrainedModelInference:
                     f"Current value: {self.prompts}, "
                     f"{str_i} violates the condition."
                 )
-        if self.batch_size < 1:
+        if not(isinstance(self.batch_size, int) and self.batch_size > 0):
             raise ValueError(
-                "Training batch size can not be an integer less than 1. "
+                "Inference batch size should be an integer greater than 0. "
                 f"Current batch_size = {self.batch_size}."
             )
         if not isinstance(self.guidance_scale, (int, float)) or not (
