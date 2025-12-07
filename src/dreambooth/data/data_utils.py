@@ -106,7 +106,7 @@ def save_image_rgb(
         raise OSError(f"Failed to save image to {path}: {e}") from e
 
 
-def save_images(
+def save_image_batch(
     images: Union[List[Image.Image], Dict[str, Image.Image]],
     out_dir: Union[str, Path],
     prefix: str = "image",
