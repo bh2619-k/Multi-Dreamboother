@@ -17,7 +17,11 @@ from diffusers import (
 from PIL import Image
 
 from dreambooth import constants
-from dreambooth.data.data_utils import directory_exists, directory_is_empty, save_images
+from dreambooth.data.data_utils import (
+    directory_exists,
+    directory_is_empty,
+    save_image_batch,
+)
 from dreambooth.logger.logger_factory import LoggerFactory
 
 log = LoggerFactory.get_logger()
@@ -34,7 +38,6 @@ class PretrainedModelInference:
         guidance_scale: float,
         steps: int,
         seed: int,
-        save_folder: str,
     ):
 
         self.model_name = model_name
@@ -43,7 +46,6 @@ class PretrainedModelInference:
         self.guidance_scale = guidance_scale
         self.steps = steps
         self.seed = seed
-        self.save_folder = Path(save_folder)
 
         self._validate_input_arguments()
 
@@ -135,16 +137,21 @@ class PretrainedModelInference:
 
             yield images
 
-    def generate_and_save_images(self) -> None:
+    def generate_and_save_images(self, save_folder: Path) -> None:
         """
         Generate images in batches and save them to disk,
         logging progress every 20 images.
         """
+        if not directory_exists(path=save_folder):
+            raise NotADirectoryError(f"Save folder invalid: {save_folder}")
+        if not directory_is_empty(path=save_folder):
+            raise ValueError(f"Save folder should be empty: {save_folder}")
+
         total_generated = 0
 
         for images in self.generate_image_batches():
-            saved_paths = save_images(
-                images, self.save_folder, ext="png", overwrite=False
+            saved_paths = save_image_batch(
+                images, save_folder, ext="png", overwrite=False
             )
 
             total_generated += len(saved_paths)
@@ -196,7 +203,7 @@ class PretrainedModelInference:
                     f"Current value: {self.prompts}, "
                     f"{str_i} violates the condition."
                 )
-        if not(isinstance(self.batch_size, int) and self.batch_size > 0):
+        if not (isinstance(self.batch_size, int) and self.batch_size > 0):
             raise ValueError(
                 "Inference batch size should be an integer greater than 0. "
                 f"Current batch_size = {self.batch_size}."
@@ -213,7 +220,3 @@ class PretrainedModelInference:
                 "Inference steps should be an integer in range [1, 1000]. "
                 f"Current value is {self.steps}"
             )
-        if not directory_exists(path=self.save_folder):
-            raise NotADirectoryError(f"Save folder invalid: {self.save_folder}")
-        if not directory_is_empty(path=self.save_folder):
-            raise ValueError(f"Save folder should be empty: {self.save_folder}")
