@@ -6,7 +6,6 @@ from dreambooth.data.data_utils import (
     directory_exists,
     directory_is_empty,
     remove_content_inside_dir,
-    save_images,
 )
 from dreambooth.inference.dreambooth_infer import DreamboothFinetunedModelInference
 from dreambooth.inference.pretrained_infer import PretrainedModelInference
@@ -185,6 +184,15 @@ def main():
         "a total of 6 images will be produced.",
     )
     infer_p.add_argument(
+        "--batch_size",
+        type=int,
+        default=8,
+        help=(
+            "Number of prompts to process at once during inference. "
+            "Higher values use more GPU memory but speed up generation."
+        ),
+    )
+    infer_p.add_argument(
         "--guidance_scale", type=float, default=7.5, help="CFG guidance scale"
     )
     infer_p.add_argument("--steps", type=int, default=80, help="Inference steps")
@@ -225,7 +233,7 @@ def main():
         log.info("\n=== TRAIN MODE ===")
         log.info("Input arguments: {}".format(args))
 
-        # If prior preservation is on, generate samples
+        # --- If prior preservation is on, generate samples
         # with pretrained frozen model
         if args.prior_preservation:
             class_generation_dir = Path(args.class_generation_dir)
@@ -243,10 +251,11 @@ def main():
                     guidance_scale=args.guidance_scale,
                     steps=args.infer_steps,
                     seed=args.seed,
-                    save_folder=args.class_generation_dir,
                 )
                 frozen_pretrained_model.load_pipe_for_inference()
-                frozen_pretrained_model.generate_and_save_images()
+                frozen_pretrained_model.generate_and_save_images(
+                    save_folder=class_generation_dir
+                )
             else:
                 # In case of resuing previously generated images with
                 # frozon model, the folder should exist
@@ -289,32 +298,26 @@ def main():
     # --- Inferemce branch
 
     if args.mode == "infer":
-        model_dir = Path(args.load_path)
-
-        if not model_dir.is_dir():
-            raise NotADirectoryError(f"Model load path invalid: {model_dir}")
 
         log.info("\n=== Inference MODE ===")
         log.info("Input arguments: {}".format(args))
+
+        output_sample_dir = Path(args.output_sample_dir)
+        output_sample_dir.mkdir(parents=True, exist_ok=True)
+        remove_content_inside_dir(dir=output_sample_dir)
 
         inference = DreamboothFinetunedModelInference(
             load_path=args.load_path,
             prompts=args.prompt,
             negative_prompt=args.negative_prompt,
             num_img_per_prompt=args.num_img_per_prompt,
+            batch_size=args.batch_size,
             guidance_scale=args.guidance_scale,
             steps=args.steps,
             seed=args.seed,
         )
         inference.load_pipe_for_inference()
-        images = inference.generate_images()
-
-        # Save generated images
-        output_sample_dir = Path(args.output_sample_dir)
-        output_sample_dir.mkdir(parents=True, exist_ok=True)
-        remove_content_inside_dir(dir=output_sample_dir)
-        saved_paths = save_images(images, output_sample_dir, ext="png", overwrite=True)
-        print(f"[save_images] Saved {len(saved_paths)} image(s) to {output_sample_dir}")
+        inference.generate_and_save_images(save_folder=output_sample_dir)
 
 
 if __name__ == "__main__":
