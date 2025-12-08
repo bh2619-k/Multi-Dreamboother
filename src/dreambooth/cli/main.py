@@ -94,6 +94,16 @@ def main():
         ),
     )
     train_p.add_argument(
+        "--prior_loss_weight",
+        type=float,
+        default=1.0,
+        help=(
+            "Weight applied to the prior-preservation loss when --prior_preservation "
+            " is enabled Controls the balance between the instance loss and the class"
+            " (prior) loss."
+        ),
+    )
+    train_p.add_argument(
         "--num_class_images",
         type=int,
         default=200,
@@ -288,6 +298,7 @@ def main():
             max_steps=args.max_steps,
             learning_rate=args.learning_rate,
             prior_preservation=args.prior_preservation,
+            prior_loss_weight=args.prior_loss_weight,
             class_generation_dir=args.class_generation_dir,
             seed=args.seed,
         )

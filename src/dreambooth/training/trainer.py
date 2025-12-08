@@ -41,6 +41,7 @@ class DreamBoothTrainer:
         learning_rate: float,
         prior_preservation: bool,
         class_generation_dir: str,
+        prior_loss_weight: float,
         seed: int,
     ):
         self.model_name = model_name
@@ -55,6 +56,7 @@ class DreamBoothTrainer:
         self.learning_rate = learning_rate
         self.prior_preservation = prior_preservation
         self.class_generation_dir = Path(class_generation_dir)
+        self.prior_loss_weight = prior_loss_weight
         self.seed = int(seed)
 
         self._validate_input_arguments()
@@ -282,7 +284,22 @@ class DreamBoothTrainer:
             ).sample
 
             # Calculate loss
-            loss = self.compute_loss(gt_noise=noise, pred_noise=noise_pred)
+            if self.prior_preservation:
+                # assume 1:1 mix (subject first, prior second)
+                half = batch_size // 2
+                # subject
+                loss_subject = self.compute_loss(
+                    gt_noise=noise[:half],
+                    pred_noise=noise_pred[:half],
+                )
+                # prior
+                loss_prior = self.compute_loss(
+                    gt_noise=noise[half:],
+                    pred_noise=noise_pred[half:],
+                )
+                loss = loss_subject + self.prior_loss_weight * loss_prior
+            else:
+                loss = self.compute_loss(gt_noise=noise, pred_noise=noise_pred)
 
             # Calculate gradients
             self.accelerator.backward(loss)
@@ -476,6 +493,14 @@ class DreamBoothTrainer:
             if directory_is_empty(path=self.class_generation_dir):
                 raise ValueError(
                     f"Class generation folder is empty: {self.class_generation_dir}"
+                )
+        if self.prior_preservation:
+            if not (
+                isinstance(self.prior_loss_weight, float)
+                and (0 < self.prior_loss_weight <= 10)
+            ):
+                raise ValueError(
+                    "Prior loss weight (lambda) should be a float in range (0.0, 10.0]"
                 )
 
     def inc_global_step(self) -> None:
