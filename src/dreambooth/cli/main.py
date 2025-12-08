@@ -80,7 +80,15 @@ def main():
         "--learning_rate",
         type=float,
         default=2.0e-06,
-        help="Training learning rate, e.g., 2e-6.",
+        help="Training learning rate for all trainable components except"
+        " text encoder, e.g., 2e-6.",
+    )
+    train_p.add_argument(
+        "--learning_rate_text_encoder",
+        type=float,
+        default=1.0e-06,
+        help="Learning rate used when training the text encoder(s), e.g., 1e-6."
+        " Only considered when train_text_encoder is true",
     )
     train_p.add_argument(
         "--prior_preservation",
@@ -297,6 +305,7 @@ def main():
             batch_size=args.batch_size,
             max_steps=args.max_steps,
             learning_rate=args.learning_rate,
+            learning_rate_text_encoder=args.learning_rate_text_encoder,
             prior_preservation=args.prior_preservation,
             prior_loss_weight=args.prior_loss_weight,
             class_generation_dir=args.class_generation_dir,

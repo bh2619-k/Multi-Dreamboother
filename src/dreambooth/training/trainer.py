@@ -39,6 +39,7 @@ class DreamBoothTrainer:
         batch_size: int,
         max_steps: int,
         learning_rate: float,
+        learning_rate_text_encoder: float,
         prior_preservation: bool,
         class_generation_dir: str,
         prior_loss_weight: float,
@@ -54,6 +55,7 @@ class DreamBoothTrainer:
         self.batch_size = batch_size
         self.max_steps = max_steps
         self.learning_rate = learning_rate
+        self.learning_rate_text_encoder = learning_rate_text_encoder
         self.prior_preservation = prior_preservation
         self.class_generation_dir = Path(class_generation_dir)
         self.prior_loss_weight = prior_loss_weight
@@ -157,18 +159,33 @@ class DreamBoothTrainer:
         return self.components
 
     def configure_optimizer(self):
-        """Configure the AdamW optimizer with sane defaults and config overrides."""
-        components = self.get_components(check_wrap_with_accelarate=False)
-        params = list(components.trainable_parameters())
-        if not params:
-            raise RuntimeError("No trainable parameters found.")
-        wd = 0.01
+        comps = self.get_components(check_wrap_with_accelarate=False)
+        if comps is None:
+            raise RuntimeError("Models are not initialized.")
+
+        # UNet parameters
+        unet = comps.unet
+        params_unet = list(unet.parameters())
+        param_groups = [
+            {"params": params_unet, "lr": self.learning_rate, "weight_decay": 0.01},
+        ]
+
+        # Text encoder parameters
+        if self.train_text_encoder:
+            te = comps.text_encoder_1
+            te_params = [p for p in te.parameters() if p.requires_grad]
+            if te_params:
+                param_groups.append(
+                    {
+                        "params": te_params,
+                        "lr": self.learning_rate_text_encoder,
+                        "weight_decay": 0.0,
+                    }
+                )
+
         betas = (0.9, 0.999)
         eps = 1e-8
-        lr = self.learning_rate
-        self.optimizer = torch.optim.AdamW(
-            [{"params": params, "lr": lr, "weight_decay": wd}], betas=betas, eps=eps
-        )
+        self.optimizer = torch.optim.AdamW(param_groups, betas=betas, eps=eps)
 
     def get_optimizer(
         self, check_wrap_with_accelarate: bool = True
@@ -477,6 +494,13 @@ class DreamBoothTrainer:
                 "Learning rate should be a float number between "
                 f"zero and one, current inputed value {self.learning_rate}."
             )
+        if self.train_text_encoder:
+            if not (0.0 < self.learning_rate_text_encoder < 1.0):
+                raise ValueError(
+                    "Text encoder(s) learning rate should be a float number between "
+                    "zero and one, "
+                    f"current inputed value {self.learning_rate_text_encoder}."
+                )
         if not isinstance(self.prior_preservation, bool):
             raise ValueError(
                 "Prior preservation flag should be a boolean, "
