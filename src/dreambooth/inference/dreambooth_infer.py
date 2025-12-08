@@ -103,12 +103,20 @@ class DreamboothFinetunedModelInference:
             ft_te = CLIPTextModel.from_pretrained(te_path)
 
         # Build pipeline with overrides so Accelerate can shard them
+    
+        pipe_kwargs = {
+            "safety_checker": None,
+            "feature_extractor": None,
+            "unet": ft_unet,
+        }
+
+        # Only override text_encoder if a finetuned one exists
+        if ft_te is not None:
+            pipe_kwargs["text_encoder"] = ft_te
+
         self.pipe = StableDiffusionPipeline.from_pretrained(
             self.trained_model_attrs["model_name"],
-            safety_checker=None,
-            feature_extractor=None,
-            unet=ft_unet,  # Fine-tuned UNet
-            text_encoder=ft_te if ft_te else None,  # Fine-tuned text-encoder, if exist
+            **pipe_kwargs
         )
         # keep the whole pipe on local device.
         self.pipe.to(self.device)
