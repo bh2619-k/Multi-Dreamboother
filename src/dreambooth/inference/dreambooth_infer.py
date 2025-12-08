@@ -103,7 +103,6 @@ class DreamboothFinetunedModelInference:
             ft_te = CLIPTextModel.from_pretrained(te_path)
 
         # Build pipeline with overrides so Accelerate can shard them
-    
         pipe_kwargs = {
             "safety_checker": None,
             "feature_extractor": None,
@@ -115,8 +114,7 @@ class DreamboothFinetunedModelInference:
             pipe_kwargs["text_encoder"] = ft_te
 
         self.pipe = StableDiffusionPipeline.from_pretrained(
-            self.trained_model_attrs["model_name"],
-            **pipe_kwargs
+            self.trained_model_attrs["model_name"], **pipe_kwargs
         )
         # keep the whole pipe on local device.
         self.pipe.to(self.device)

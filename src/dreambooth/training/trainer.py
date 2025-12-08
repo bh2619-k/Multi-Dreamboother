@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from accelerate import Accelerator
 from accelerate.utils import set_seed
 from accelerate.utils import tqdm as accel_tqdm
+from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 from torch.utils.data import DataLoader
 
 from dreambooth import constants
@@ -90,6 +91,8 @@ class DreamBoothTrainer:
             self.create_frozen_images_data_loader(batch_size=batch_size)
 
         self.optimizer: torch.optim.Optimizer | None = None
+
+        self.lr_scheduler: LRScheduler | None = None
 
         # Whether objects wraped by accelator
         self._acc_wrap = False
@@ -190,9 +193,44 @@ class DreamBoothTrainer:
     def get_optimizer(
         self, check_wrap_with_accelarate: bool = True
     ) -> torch.optim.Optimizer:
+        if check_wrap_with_accelarate:
+            self._require_wrapping_with_accelarate()
         if self.optimizer is None:
             raise RuntimeError("Optimizer is not initialized.")
         return self.optimizer
+
+    def configure_scheduler(
+        self,
+        num_training_steps: int,
+        warmup_step_ratio: float = 0.05,
+        min_lr_ratio: float = 0.1,
+    ) -> None:
+        """
+        Create a cosine-decay scheduler with linear warmup and a minimum
+        learning-rate floor. Compatible with HuggingFace Accelerate.
+        """
+        if self.optimizer is None:
+            raise RuntimeError("Optimizer is not initialized.")
+
+        warmup_steps = max(10, int(warmup_step_ratio * num_training_steps))
+
+        def lr_lambda(current_step: int):
+            # --- Warmup phase ---
+            if current_step < warmup_steps:
+                return float(current_step) / float(max(1, warmup_steps))
+
+            # --- Cosine decay after warmup ---
+            progress = float(current_step - warmup_steps) / float(
+                max(1, num_training_steps - warmup_steps)
+            )
+
+            cosine = 0.5 * (1.0 + np.cos(np.pi * progress))
+
+            # Maintain a minimum LR floor (prevents LR from becoming
+            # exactly zero)
+            return min_lr_ratio + (1.0 - min_lr_ratio) * cosine
+
+        self.lr_scheduler = LambdaLR(self.optimizer, lr_lambda)
 
     def prepare_with_accelerate(self):
         """Wrap trainable and eval-only modules with Accelerate once."""
@@ -386,6 +424,11 @@ class DreamBoothTrainer:
             # Forward and backward pass with one mini batch
             loss = self.train_step(batch=batch_i)
             losses.append(loss)
+
+            if self.lr_scheduler is not None:
+                # Scheduler must advance exactly [once]
+                # per actual optimizer update.
+                self.lr_scheduler.step()
 
             progress_bar.update(1)
             progress_bar.set_postfix(
