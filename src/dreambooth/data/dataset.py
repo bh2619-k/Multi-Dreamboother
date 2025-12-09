@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 import torch
 from torch.utils.data import Dataset
@@ -7,9 +7,9 @@ from transformers import PreTrainedTokenizer
 from dreambooth.data.data_utils import list_files, read_image_rgb
 
 
-class ImageCollectionDatasetWithDefaultPrompt(Dataset):
-    """Loads all RGB images from a folder and assigns a shared
-      default prompt.
+class ImageCollectionDatasetWithPrompts(Dataset):
+    """Loads all RGB images from a folder and assigns a 
+        prompt to each one according to inputed prompts.
 
     Each sample returns tokenized prompt IDs and image tensors 
     for DreamBooth-style training.
@@ -18,19 +18,34 @@ class ImageCollectionDatasetWithDefaultPrompt(Dataset):
     def __init__(
         self,
         folder_path: str,
-        instance_prompt: str,
+        prompts: Union[str, list[str]],
         tokenizer: PreTrainedTokenizer,
         transform: Optional[Callable] = None,
     ):
 
         self.folder_path = folder_path
         self.transform = transform
-        self.instance_prompt = instance_prompt
+        self.prompts = prompts
         self.tokenizer = tokenizer
 
         self.image_files = list_files(
             folder=self.folder_path, suffixes=[".jpg", ".jpeg", ".png"]
         )
+
+        # Expand prompts of it is only one string
+        if isinstance(self.prompts, str):
+            self.prompts = [self.prompts] * len(self.image_files)
+        elif isinstance(self.prompts, list) and len(self.prompts) == 1:
+            self.prompts = self.prompts * len(self.image_files)
+        elif not isinstance(self.prompts, list):
+            raise ValueError('input prompts should be a string or'
+            ' a list of strings.')
+        if len(self.image_files) != len(self.prompts):
+            raise ValueError(
+                "Number of images in the folder should be equal "
+                f"number of prompts.\nFolder: {self.folder_path}"
+                f"\nNumber of prompts: {len(self.prompts)}"
+            )
 
     def __len__(
         self,
@@ -49,8 +64,9 @@ class ImageCollectionDatasetWithDefaultPrompt(Dataset):
             sample['image'] = self.transform(image)
 
         # --- Prompt
+        prompt = self.prompts[index]
         sample['instance_prompt_ids'] = self.tokenizer(
-            self.instance_prompt,
+            prompt,
             padding="do_not_pad",
             truncation=True,
             max_length=self.tokenizer.model_max_length,

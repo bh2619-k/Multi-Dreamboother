@@ -1,17 +1,17 @@
 import os
-from typing import Optional
+from typing import Optional, Union
 
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizer
 
-from dreambooth.data.dataset import ImageCollectionDatasetWithDefaultPrompt
+from dreambooth.data.dataset import ImageCollectionDatasetWithPrompts
 from dreambooth.data.transforms import get_transform_image_to_tensor
 
 
 def get_image_collection_const_prompt_dataloader(
     folder_path: str,
     model_name: str,
-    instance_prompt: str,
+    prompts: Union[str, list[str]],
     tokenizer_1: PreTrainedTokenizer,
     batch_size: int = 4,
     num_workers: int = 4,
@@ -26,8 +26,11 @@ def get_image_collection_const_prompt_dataloader(
         folder_path (str): Path to the folder containing image files.
         model_name (str): Name or identifier of the model; determines image
             size and transforms.
-        instance_prompt (str): Text prompt to associate with every image
-            in the dataset.
+        prompts (Union[str, list[str]]): Text prompts associated with the 
+            images. This may be a single string, in which case the same
+            prompt is applied to all subject images, or a list of prompts
+            whose length matches the number of subject images, assigning
+            one prompt per image.
         tokenizer_1 (PreTrainedTokenizer): Tokenizer used to encode the 
             constant prompt.
         batch_size (int, optional): Number of images per batch. Defaults to 4.
@@ -59,10 +62,10 @@ def get_image_collection_const_prompt_dataloader(
         raise FileNotFoundError(f"Data folder '{folder_path}' does not exist.")
 
     # Initialize dataset
-    dataset = ImageCollectionDatasetWithDefaultPrompt(
+    dataset = ImageCollectionDatasetWithPrompts(
         folder_path=folder_path,
         transform=transform,
-        instance_prompt=instance_prompt,
+        prompts=prompts,
         tokenizer=tokenizer_1,
     )
 
@@ -75,7 +78,7 @@ def get_image_collection_const_prompt_dataloader(
         pin_memory=pin_memory,
         drop_last=(mode.lower() == "train"),
         persistent_workers=(num_workers > 0 and mode.lower() == "train"),
-        collate_fn=ImageCollectionDatasetWithDefaultPrompt.make_collate_fn(tokenizer_1),
+        collate_fn=ImageCollectionDatasetWithPrompts.make_collate_fn(tokenizer_1),
     )
 
     return dataloader

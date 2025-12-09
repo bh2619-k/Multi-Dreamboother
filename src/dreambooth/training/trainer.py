@@ -2,6 +2,7 @@ import os
 import random
 from contextlib import nullcontext
 from pathlib import Path
+from typing import Union
 
 import numpy as np
 import torch
@@ -34,7 +35,7 @@ class DreamBoothTrainer:
         input_folder: str,
         save_folder: str,
         train_text_encoder: bool,
-        instance_prompt: str,
+        instance_prompts: Union[str, list[str]],
         class_prompt: str,
         num_worker: int,
         batch_size: int,
@@ -50,7 +51,7 @@ class DreamBoothTrainer:
         self.input_folder = Path(input_folder)
         self.save_folder = Path(save_folder)
         self.train_text_encoder = train_text_encoder
-        self.instance_prompt = instance_prompt
+        self.instance_prompts = instance_prompts
         self.class_prompt = class_prompt
         self.num_worker = num_worker
         self.batch_size = batch_size
@@ -108,7 +109,7 @@ class DreamBoothTrainer:
             model_name=self.model_name,
             batch_size=batch_size,
             mode="train",
-            instance_prompt=self.instance_prompt,
+            prompts=self.instance_prompts,
             tokenizer_1=components.get_tokenizer_1(),
         )
         log.info(f"Number of batches in dataloader: {len(self.train_data_loader)}")
@@ -127,7 +128,7 @@ class DreamBoothTrainer:
             model_name=self.model_name,
             batch_size=batch_size,
             mode="train",
-            instance_prompt=self.class_prompt,
+            prompts=self.class_prompt,
             tokenizer_1=components.get_tokenizer_1(),
         )
         log.info(f"Number of batches in dataloader: {len(self.frozen_images_loader)}")
@@ -416,7 +417,9 @@ class DreamBoothTrainer:
                     self.infinite_loader(loader=frozen_images_loader)
                 )
                 batch_i = merge_batches(
-                    batch_a=batch_i_subject_data, batch_b=batch_i_frozen_data
+                    batch_a=batch_i_subject_data,
+                    batch_b=batch_i_frozen_data,
+                    tokenizer=components.tokenizer_1,
                 )
             else:
                 batch_i = batch_i_subject_data
@@ -479,7 +482,7 @@ class DreamBoothTrainer:
                 "model_name": self.model_name,
                 "train_text_encoder": self.train_text_encoder,
                 "global_step": int(self.global_step),
-                "instance_prompt": self.instance_prompt,
+                "instance_prompt": self.instance_prompts,
                 "prior_preservation": self.prior_preservation,
                 "resolution": (model_res, model_res),
             },
@@ -508,8 +511,19 @@ class DreamBoothTrainer:
             raise NotADirectoryError(f"Save folder invalid: {self.save_folder}")
         if not isinstance(self.train_text_encoder, bool):
             raise ValueError("train_text_encoder should be a boolean.")
-        if self.instance_prompt == "":
-            raise ValueError("instance_prompt can not be empty sentence.")
+        if (
+            not isinstance(self.instance_prompts, list)
+            or len(self.instance_prompts) < 1
+        ):
+            raise ValueError(
+                "instance_prompts should be a non-empty list of prompts. "
+                f"Current value is {self.instance_prompts}"
+            )
+        if not all(isinstance(p, str) and p.strip() for p in self.instance_prompts):
+            raise ValueError(
+                "Each prompt in instance_prompts must be a non-empty string. "
+                f"Current value is {self.instance_prompts}"
+            )
         if self.class_prompt == "":
             raise ValueError("class_prompt can not be empty sentence.")
         if not (isinstance(self.num_worker, int) and -1 <= self.num_worker <= 8):

@@ -47,12 +47,23 @@ def main():
         help="In addition to diffusion model, also fine-tune text encoder",
     )
     train_p.add_argument(
-        "--instance_prompt",
+        "--instance_prompts",
         type=str,
+        nargs="+",
         required=True,
-        help="Describe the training subject using your special token + subject type, "
-        "e.g., 'a photo of sks dog' or 'a photo of sks woman'. Keep the token "
-        "next to the subject it refers to.",
+        help=(
+            "One or more prompts describing the subject using your unique identifier"
+            " token (e.g., 'sks') and class family of subject (e.g., 'dog'). If a "
+            "single prompt is provided, it is applied to all subject images. If "
+            "multiple prompts are provided, they are matched to subject images in "
+            "alphabetical filename order, and the number of prompts must equal"
+            " the number of images. Each prompt must include the identifier token"
+            " and class family of subject. "
+            'Example: --instance_prompts "a photo of sks dog" or '
+            '--instance_prompts "a sks dog in the jungle" "a sks dog at the beach"'
+            ". [*] Using a single prompt is recommended since it is more stable "
+            "unless you intentionally want per-image variation."
+        ),
     )
     train_p.add_argument(
         "--class_prompt",
@@ -98,7 +109,7 @@ def main():
             " its class. When enabled, batches include both subject images and"
             " images generated from a frozen pre-tuning model using a general "
             "class prompt. Requires batch size >1. Typically used with "
-            "--instance_prompt and --class_prompt."
+            "--instance_prompts and --class_prompt."
         ),
     )
     train_p.add_argument(
@@ -299,7 +310,7 @@ def main():
             input_folder=args.input_folder,
             save_folder=args.save_folder,
             train_text_encoder=args.train_text_encoder,
-            instance_prompt=args.instance_prompt,
+            instance_prompts=args.instance_prompts,
             class_prompt=args.class_prompt,
             num_worker=args.num_worker,
             batch_size=args.batch_size,
