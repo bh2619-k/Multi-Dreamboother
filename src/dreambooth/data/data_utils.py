@@ -1,7 +1,7 @@
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
 import yaml
@@ -272,26 +272,55 @@ def directory_is_empty(path: Path) -> bool:
     # Any items inside?
     return not any(path.iterdir())
 
-def merge_batches(batch_a: dict, batch_b: dict):
-    """Merge two training batches by concatenating their fields.
+
+def merge_batches(batch_a, batch_b, tokenizer):
+    """
+    Merge two training batches for DreamBooth / Stable Diffusion by concatenating
+    pixel values and padding input_ids directly on the GPU.
+
+    This function avoids slow CPU operations (such as tokenizer.pad and .tolist())
+    by performing sequence padding with torch.nn.functional.pad on the active device.
+    It supports batches containing prompts of different token lengths and produces
+    a unified batch suitable for CLIP text encoders, which require uniformly shaped
+    input_ids.
 
     Args:
-        batch_a: First batch containing "pixel_values" and "input_ids".
-        batch_b: Second batch containing "pixel_values" and "input_ids".
+        batch_a (dict):
+            A batch dictionary containing:
+                - "pixel_values": Float tensor of shape (B1, C, H, W)
+                - "input_ids": Long tensor of shape (B1, L1)
+        batch_b (dict):
+            A second batch dictionary containing:
+                - "pixel_values": Float tensor of shape (B2, C, H, W)
+                - "input_ids": Long tensor of shape (B2, L2)
+        tokenizer:
+            A HuggingFace tokenizer object. Its `pad_token_id` is used when padding
+            shorter input_id sequences.
 
     Returns:
-        A new dict with concatenated "pixel_values" and "input_ids".
+        dict:
+            A merged batch with keys:
+                - "pixel_values": Tensor of shape (B1 + B2, C, H, W)
+                - "input_ids": Tensor of shape (B1 + B2, max(L1, L2))
+            Both tensors are returned on the same device as the original batches.
     """
-    merged = {}
+    pad_id = tokenizer.pad_token_id or 0
 
-    # Concatenate pixel_values
-    merged["pixel_values"] = torch.cat(
-        [batch_a["pixel_values"], batch_b["pixel_values"]], dim=0
-    )
+    ids_a = batch_a["input_ids"]
+    ids_b = batch_b["input_ids"]
 
-    # Concatenate input_ids
-    merged["input_ids"] = torch.cat(
-        [batch_a["input_ids"], batch_b["input_ids"]], dim=0
-    )
+    # Determine the max length between both batches
+    max_len = max(ids_a.shape[1], ids_b.shape[1])
 
-    return merged
+    # Pad to max_len (ON GPU!)
+    a_padded = torch.nn.functional.pad(ids_a, (0, max_len - ids_a.shape[1]), value=pad_id)
+    b_padded = torch.nn.functional.pad(ids_b, (0, max_len - ids_b.shape[1]), value=pad_id)
+
+    merged_ids = torch.cat([a_padded, b_padded], dim=0)
+
+    merged_pixels = torch.cat([batch_a["pixel_values"], batch_b["pixel_values"]], dim=0)
+
+    return {
+        "input_ids": merged_ids,
+        "pixel_values": merged_pixels,
+    }
