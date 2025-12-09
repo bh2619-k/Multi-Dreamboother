@@ -168,7 +168,7 @@ class DreamBoothTrainer:
             raise RuntimeError("Models are not initialized.")
 
         # UNet parameters
-        unet = comps.unet
+        unet = comps.get_unet()
         params_unet = list(unet.parameters())
         param_groups = [
             {"params": params_unet, "lr": self.learning_rate, "weight_decay": 0.01},
@@ -176,7 +176,7 @@ class DreamBoothTrainer:
 
         # Text encoder parameters
         if self.train_text_encoder:
-            te = comps.text_encoder_1
+            te = comps.get_text_encoder_1()
             te_params = [p for p in te.parameters() if p.requires_grad]
             if te_params:
                 param_groups.append(
@@ -239,9 +239,9 @@ class DreamBoothTrainer:
 
         # Collect trainable modules by (name, module)
         train_te = self.train_text_encoder
-        trainable_pairs = [("unet", comps.unet)]
+        trainable_pairs = [("unet", comps.get_unet())]
         if train_te:
-            trainable_pairs.append(("text_encoder_1", comps.text_encoder_1))
+            trainable_pairs.append(("text_encoder_1", comps.get_text_encoder_1()))
 
         # Build the argument list for prepare()
         prepare_args = [m for _, m in trainable_pairs] + [
@@ -311,9 +311,9 @@ class DreamBoothTrainer:
         with self.accelerator.accumulate(tuple(accumulate_models)):
             # Calculate latent of image with encoder of VAE
             with torch.no_grad():
-                latents = comps.vae.encode(images).latent_dist.sample()
+                latents = comps.get_vae().encode(images).latent_dist.sample()
                 # adjusts the latent magnitude
-                latents = latents * comps.vae.config.scaling_factor
+                latents = latents * comps.get_vae().config.scaling_factor
 
             # Sample noise that we add to the latents
             noise = torch.randn_like(latents)
@@ -322,20 +322,20 @@ class DreamBoothTrainer:
             # Sample random timestep for each image
             timesteps = torch.randint(
                 low=0,
-                high=comps.noise_scheduler.config.num_train_timesteps,
+                high=comps.get_noise_scheduler().config.num_train_timesteps,
                 size=(batch_size,),
                 device=self.device,
             ).long()
 
             # Add Noise to latents, Diffusion forward pass
-            noisy_latents = comps.noise_scheduler.add_noise(latents, noise, timesteps)
+            noisy_latents = comps.get_noise_scheduler().add_noise(latents, noise, timesteps)
 
             # Embedding of text prompt
             with te_ctx:
-                encoder_hidden_states = comps.text_encoder_1(tokens_ids)[0]
+                encoder_hidden_states = comps.get_text_encoder_1()(tokens_ids)[0]
 
             # Predict the noise that was originally added to the clean image latent
-            noise_pred = comps.unet(
+            noise_pred = comps.get_unet()(
                 noisy_latents, timesteps, encoder_hidden_states
             ).sample
 
@@ -419,7 +419,7 @@ class DreamBoothTrainer:
                 batch_i = merge_batches(
                     batch_a=batch_i_subject_data,
                     batch_b=batch_i_frozen_data,
-                    tokenizer=components.tokenizer_1,
+                    tokenizer=components.get_tokenizer_1(),
                 )
             else:
                 batch_i = batch_i_subject_data
@@ -466,11 +466,11 @@ class DreamBoothTrainer:
         comps = self.get_components()
 
         # Unwrap models from DDP/FSDP wrappers before saving
-        unet = self.accelerator.unwrap_model(comps.unet)
+        unet = self.accelerator.unwrap_model(comps.get_unet())
         unet.save_pretrained(out_dir / "unet")
 
         if self.train_text_encoder:
-            te = comps.text_encoder_1
+            te = comps.get_text_encoder_1()
             te = self.accelerator.unwrap_model(te) if hasattr(te, "module") else te
             te.save_pretrained(out_dir / "text_encoder")
 

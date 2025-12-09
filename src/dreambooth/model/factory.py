@@ -109,6 +109,18 @@ class SDComponents:
 
     def get_tokenizer_1(self):
         return self.tokenizer_1
+    
+    def get_text_encoder_1(self):
+        return self.text_encoder_1
+
+    def get_unet(self):
+        return self.unet
+    
+    def get_vae(self):
+        return self.vae
+    
+    def get_noise_scheduler(self):
+        return self.noise_scheduler
 
     def __post_init__(self):
         names = {"tokenizer_1", "text_encoder_1", "unet", "vae", "noise_scheduler"}
