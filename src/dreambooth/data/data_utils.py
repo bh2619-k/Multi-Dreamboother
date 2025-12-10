@@ -1,7 +1,7 @@
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
 import yaml
@@ -313,8 +313,12 @@ def merge_batches(batch_a, batch_b, tokenizer):
     max_len = max(ids_a.shape[1], ids_b.shape[1])
 
     # Pad to max_len (ON GPU!)
-    a_padded = torch.nn.functional.pad(ids_a, (0, max_len - ids_a.shape[1]), value=pad_id)
-    b_padded = torch.nn.functional.pad(ids_b, (0, max_len - ids_b.shape[1]), value=pad_id)
+    a_padded = torch.nn.functional.pad(
+        ids_a, (0, max_len - ids_a.shape[1]), value=pad_id
+    )
+    b_padded = torch.nn.functional.pad(
+        ids_b, (0, max_len - ids_b.shape[1]), value=pad_id
+    )
 
     merged_ids = torch.cat([a_padded, b_padded], dim=0)
 

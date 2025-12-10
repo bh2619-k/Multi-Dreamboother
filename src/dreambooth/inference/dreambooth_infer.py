@@ -16,7 +16,7 @@ from diffusers import (
     UNet2DConditionModel,
 )
 from PIL import Image
-from transformers import CLIPTextModel
+from transformers import CLIPTextModel, CLIPTokenizer
 
 from dreambooth.data.data_utils import (
     directory_exists,
@@ -87,6 +87,11 @@ class DreamboothFinetunedModelInference:
 
         log.info(f"\nSaved model meta data: {self.trained_model_attrs}\n")
 
+        tokenizer_path = export_dir / "tokenizer"
+        if not tokenizer_path.is_dir():
+            raise FileNotFoundError(f"Missing Tokenizer folder: {tokenizer_path}")
+        ft_tokenizer = CLIPTokenizer.from_pretrained(tokenizer_path)
+
         # Build fine-tuned submodules first (only if dirs exist)
         unet_path = export_dir / "unet"
         if not unet_path.is_dir():
@@ -107,6 +112,7 @@ class DreamboothFinetunedModelInference:
             "safety_checker": None,
             "feature_extractor": None,
             "unet": ft_unet,
+            "tokenizer": ft_tokenizer,
         }
 
         # Only override text_encoder if a finetuned one exists

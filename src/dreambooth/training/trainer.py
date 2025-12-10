@@ -328,7 +328,9 @@ class DreamBoothTrainer:
             ).long()
 
             # Add Noise to latents, Diffusion forward pass
-            noisy_latents = comps.get_noise_scheduler().add_noise(latents, noise, timesteps)
+            noisy_latents = comps.get_noise_scheduler().add_noise(
+                latents, noise, timesteps
+            )
 
             # Embedding of text prompt
             with te_ctx:
@@ -461,34 +463,26 @@ class DreamBoothTrainer:
         so they can be loaded directly with StableDiffusionPipeline.
         """
         out_dir.mkdir(parents=True, exist_ok=True)
-
-        # Get model compoentns
         comps = self.get_components()
 
-        # Unwrap models from DDP/FSDP wrappers before saving
-        unet = self.accelerator.unwrap_model(comps.get_unet())
-        unet.save_pretrained(out_dir / "unet")
-
-        if self.train_text_encoder:
-            te = comps.get_text_encoder_1()
-            te = self.accelerator.unwrap_model(te) if hasattr(te, "module") else te
-            te.save_pretrained(out_dir / "text_encoder")
-
-        # Optional metadata
+        # meta data of components
         model_res = constants.DefaultModelResolution.model_res[self.model_name]
-        torch.save(
-            {
-                "training_method": "dreambooth",
-                "model_name": self.model_name,
-                "train_text_encoder": self.train_text_encoder,
-                "global_step": int(self.global_step),
-                "instance_prompt": self.instance_prompts,
-                "prior_preservation": self.prior_preservation,
-                "resolution": (model_res, model_res),
-            },
-            out_dir / "meta.pt",
-        )
+        meta_data = {
+            "training_method": "dreambooth",
+            "model_name": self.model_name,
+            "train_text_encoder": self.train_text_encoder,
+            "global_step": int(self.global_step),
+            "instance_prompt": self.instance_prompts,
+            "prior_preservation": self.prior_preservation,
+            "resolution": (model_res, model_res),
+        }
 
+        comps.export_for_inference(
+            out_dir=out_dir,
+            metadata=meta_data,
+            accelerator=self.accelerator,
+            save_text_encoder=self.train_text_encoder,
+        )
         log.info(f"Exporting models to {out_dir.resolve()} is done.")
 
     # --------------------------- Other -----------------------------------

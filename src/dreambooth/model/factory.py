@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from typing import Any
+from pathlib import Path
+from typing import Any, Optional
 
 import torch
+from accelerate import Accelerator
 from diffusers import AutoencoderKL, DDPMScheduler, UNet2DConditionModel
 from transformers import CLIPTextModel, CLIPTokenizer
 
@@ -109,16 +111,16 @@ class SDComponents:
 
     def get_tokenizer_1(self):
         return self.tokenizer_1
-    
+
     def get_text_encoder_1(self):
         return self.text_encoder_1
 
     def get_unet(self):
         return self.unet
-    
+
     def get_vae(self):
         return self.vae
-    
+
     def get_noise_scheduler(self):
         return self.noise_scheduler
 
@@ -138,6 +140,42 @@ class SDComponents:
             raise ValueError(
                 f"Component lists must be disjoint; overlaps: {sorted(overlap)}"
             )
+
+    def export_for_inference(
+        self,
+        out_dir: Path,
+        metadata: dict,
+        save_text_encoder: bool,
+        accelerator: Optional[Accelerator],
+    ):
+        """
+        Export diffution model weights into a Diffusers-compatible folder
+        so they can be loaded directly with StableDiffusionPipeline.
+        """
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        # Unwrap models from DDP/FSDP wrappers before saving
+        if accelerator is None:
+            unet = self.get_unet()
+        else:
+            unet = accelerator.unwrap_model(self.get_unet())
+        unet.save_pretrained(out_dir / "unet")
+
+        # Save tokenizer
+        tokenizer = self.get_tokenizer_1()
+        tokenizer.save_pretrained(out_dir / "tokenizer")
+
+        if save_text_encoder:
+            te = self.get_text_encoder_1()
+            if accelerator is not None:
+                te = accelerator.unwrap_model(te)
+            te.save_pretrained(out_dir / "text_encoder")
+
+        # Optional metadata
+        torch.save(
+            metadata,
+            out_dir / "meta.pt",
+        )
 
 
 def _filter_args(source: dict, allowed: list[str]) -> dict:
