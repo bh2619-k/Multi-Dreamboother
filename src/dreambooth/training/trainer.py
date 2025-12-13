@@ -35,7 +35,9 @@ class DreamBoothTrainer:
         input_folder: str,
         save_folder: str,
         train_text_encoder: bool,
+        text_encoder_training_mode: str,
         instance_prompts: Union[str, list[str]],
+        special_token: str,
         class_prompt: str,
         num_worker: int,
         batch_size: int,
@@ -51,7 +53,9 @@ class DreamBoothTrainer:
         self.input_folder = Path(input_folder)
         self.save_folder = Path(save_folder)
         self.train_text_encoder = train_text_encoder
+        self.text_encoder_training_mode = text_encoder_training_mode
         self.instance_prompts = instance_prompts
+        self.special_token = special_token
         self.class_prompt = class_prompt
         self.num_worker = num_worker
         self.batch_size = batch_size
@@ -150,6 +154,8 @@ class DreamBoothTrainer:
         self.components = build_model_components(
             model_name=self.model_name,
             train_text_encoder=self.train_text_encoder,
+            text_encoder_training_mode=self.text_encoder_training_mode,
+            special_token=self.special_token,
         )
         log.info(
             f"Model components are loaded: {self.components.get_component_groups()}"
@@ -277,6 +283,9 @@ class DreamBoothTrainer:
                 self.accelerator.prepare_model(m, evaluation_mode=True),
             )
 
+        if self.train_text_encoder and self.text_encoder_training_mode == "textual_inversion":
+            comps.text_encoder_1_token_gradient_masking()
+
         self._acc_wrap = True
 
     def prepare(self, *objs):
@@ -381,7 +390,10 @@ class DreamBoothTrainer:
         components = self.get_components(check_wrap_with_accelarate=False)
 
         # Freeze models that are not target for training
-        components.freeze_by_config()
+        components.freeze_parameters(
+            train_text_encoder=self.train_text_encoder,
+            text_encoder_training_mode=self.text_encoder_training_mode,
+        )
 
         self.configure_optimizer()
 
@@ -577,6 +589,19 @@ class DreamBoothTrainer:
                 raise ValueError(
                     "Prior loss weight (lambda) should be a float in range (0.0, 10.0]"
                 )
+        if isinstance(self.instance_prompts, str):
+            if self.special_token not in self.instance_prompts:
+                raise ValueError(
+                    f"Inputed special token ({self.special_token}) is not"
+                    f"in instance prompt ({self.instance_prompts})"
+                )
+        elif isinstance(self.instance_prompts, list):
+            for prompt_i in self.instance_prompts:
+                if self.special_token not in prompt_i:
+                    raise ValueError(
+                        f"Inputed special token ({self.special_token}) is not"
+                        f"in instance prompt ({prompt_i})"
+                    )
 
     def inc_global_step(self) -> None:
         self.global_step += 1

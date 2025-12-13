@@ -26,6 +26,10 @@ class SDComponents:
     frozen: list[str]
     cpu: list[str]
 
+    _tok_grad_hook: Optional[Any] = None
+    _special_token_id = None
+
+
     def _get_by_name(self, name: str) -> Any:
         """Return the component by its attribute name, or raise KeyError."""
         try:
@@ -45,7 +49,7 @@ class SDComponents:
                 continue
             yield name_i, m
 
-    def freeze_by_config(self) -> SDComponents:
+    def _freeze_by_config(self) -> SDComponents:
         """Set requires_grad according to (trainables, frozen). Doesn't change
         .train()/.eval()."""
         for _, m in self._iter_modules(self.trainables):
@@ -58,6 +62,67 @@ class SDComponents:
                 for p in m.parameters():
                     p.requires_grad = False
         return self
+
+    def _textual_inversion_text_encoder_1_freezing(self) -> SDComponents:
+        """Set require_grad to false for all parameters of
+        text encoder 1, except the token embedings"""
+        te = self.text_encoder_1
+        # Freeze all text encoder parameters
+        te.requires_grad_(False)
+
+        # Unfreeze full embedding matrix (needed for gradients)
+        emb = te.get_input_embeddings()
+        emb.weight.requires_grad = True
+
+        return self
+
+    def freeze_parameters(
+        self, train_text_encoder: bool, text_encoder_training_mode: str
+    ):
+
+        if not train_text_encoder:
+            return self._freeze_by_config()
+        else:
+            if text_encoder_training_mode == "full":
+                # Freeze everything based on config
+                self._freeze_by_config()
+            elif text_encoder_training_mode == "textual_inversion":
+                # Freeze everything based on config
+                self._freeze_by_config()
+                # For text encoder 1, freeze everything and unfreeze only token
+                # embedding row
+                self._textual_inversion_text_encoder_1_freezing()
+            else:
+                raise ValueError(
+                    "text_encoder_training_mode is not valid, "
+                    "should be 'full' or 'textual_inversion', "
+                    f"current value: {text_encoder_training_mode}"
+                )
+            return self
+
+    def text_encoder_1_token_gradient_masking(self):
+
+        # Prevent duplicate hooks
+        if self._tok_grad_hook is not None:
+            raise RuntimeError(
+                "Special token id is not set. Call expand_tokenizer_1() first."
+            )
+
+        # Prevent duplicate hooks
+        if self._tok_grad_hook is not None:
+            return
+        special_id = self._special_token_id
+
+        emb = self.text_encoder_1.get_input_embeddings()
+
+        def hook_fn(grad):
+            # grad: [vocab_size, hidden_dim]
+            mask = torch.zeros_like(grad)
+            mask[special_id] = grad[special_id]
+            return mask
+
+        # Save handle
+        self._tok_grad_hook = emb.weight.register_hook(hook_fn)
 
     def set_train_mode(self) -> SDComponents:
         """Switch runtime mode only. No requires_grad changes; no device/dtype moves."""
@@ -123,6 +188,16 @@ class SDComponents:
 
     def get_noise_scheduler(self):
         return self.noise_scheduler
+
+    def expand_tokenizer_1(self, special_token: str):
+        num_added = self.tokenizer_1.add_tokens(special_token)
+        if num_added == 0:
+            raise ValueError(
+                f"Special token {special_token!r} already exists in tokenizer."
+            )
+        self.text_encoder_1.resize_token_embeddings(len(self.tokenizer_1))
+        special_token_id = self.tokenizer_1.convert_tokens_to_ids(special_token)
+        self._special_token_id = special_token_id
 
     def __post_init__(self):
         names = {"tokenizer_1", "text_encoder_1", "unet", "vae", "noise_scheduler"}
@@ -226,8 +301,19 @@ def _build_stable_diffusion_v1x_base_components(
         raise KeyError("`train_text_encoder` is missing.")
 
     # --- Required arguments
-    fargs = _filter_args(source=kwargs, allowed=["train_text_encoder"])
+    fargs = _filter_args(
+        source=kwargs,
+        allowed=["train_text_encoder", "text_encoder_training_mode", "special_token"],
+    )
+    special_token = fargs["special_token"]
     train_text_encoder: bool = fargs["train_text_encoder"]
+    train_text_encoder_mode: bool = fargs["text_encoder_training_mode"]
+    if train_text_encoder:
+        if train_text_encoder_mode not in ["full", "textual_inversion"]:
+            raise ValueError(
+                "text encoder mode should be either 'full' or "
+                f"'textual_inversion', got {train_text_encoder_mode}"
+            )
 
     # --- Load components directly (no pipeline) ---
     tokenizer = CLIPTokenizer.from_pretrained(model_name, subfolder="tokenizer")
@@ -265,7 +351,13 @@ def _build_stable_diffusion_v1x_base_components(
         cpu=["noise_scheduler", "tokenizer_1"],
     )
 
-    components.freeze_by_config()
+    if train_text_encoder and train_text_encoder_mode == "textual_inversion":
+        components.expand_tokenizer_1(special_token=special_token)
+
+    components.freeze_parameters(
+        train_text_encoder=train_text_encoder,
+        text_encoder_training_mode=train_text_encoder_mode,
+    )
     components.set_train_mode()
 
     return components

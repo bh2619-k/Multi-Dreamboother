@@ -47,6 +47,17 @@ def main():
         help="In addition to diffusion model, also fine-tune text encoder",
     )
     train_p.add_argument(
+        "--text_encoder_training_mode",
+        type=str,
+        default="textual_inversion",
+        help=(
+            "Specifies how the text encoder should be trained. "
+            "Use 'textual_inversion' to train only a new embedding for a special "
+            "token added to the tokenizer, or 'full' mode to train the "
+            "entire text encoder."
+        ),
+    )
+    train_p.add_argument(
         "--instance_prompts",
         type=str,
         nargs="+",
@@ -63,6 +74,16 @@ def main():
             '--instance_prompts "a sks dog in the jungle" "a sks dog at the beach"'
             ". [*] Using a single prompt is recommended since it is more stable "
             "unless you intentionally want per-image variation."
+        ),
+    )
+    train_p.add_argument(
+        "--special_token",
+        type=str,
+        required=True,
+        help=(
+            "The special token used in '--instance_prompts' (e.g., 'sks'). "
+            "If you used a different token in the instance prompts, you must use "
+            "the same token here and during inference."
         ),
     )
     train_p.add_argument(
@@ -310,7 +331,9 @@ def main():
             input_folder=args.input_folder,
             save_folder=args.save_folder,
             train_text_encoder=args.train_text_encoder,
+            text_encoder_training_mode=args.text_encoder_training_mode,
             instance_prompts=args.instance_prompts,
+            special_token=args.special_token,
             class_prompt=args.class_prompt,
             num_worker=args.num_worker,
             batch_size=args.batch_size,
