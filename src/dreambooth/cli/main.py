@@ -62,7 +62,7 @@ def main():
     train_p.add_argument(
         "--text_encoder_training_mode",
         type=str,
-        default="textual_inversion",
+        default="full",
         help=(
             "Text encoder training mode. "
             "Use 'textual_inversion' to train only a new token embedding, "
