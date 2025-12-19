@@ -18,7 +18,8 @@ log = LoggerFactory.get_logger()
 
 def main():
     parser = argparse.ArgumentParser(
-        description="DreamBooth utility for Stable Diffusion - train or inference."
+        description="DreamBooth command-line tool for training and inference "
+        "with Stable Diffusion."
     )
 
     # Two modes: train, infer
@@ -30,31 +31,42 @@ def main():
         "--model_name",
         type=str,
         required=True,
-        help="Base HF model repo (e.g. stable-diffusion-v1-5/stable-diffusion-v1-5)",
+        help=(
+            "Hugging Face model repository to use as the base model. "
+            "Example: stable-diffusion-v1-5/stable-diffusion-v1-5."
+        ),
     )
     train_p.add_argument(
         "--input_folder",
         type=str,
         required=True,
-        help="Folder with training images, collection of several images of a subject",
+        help=(
+            "Path to a folder containing training images. "
+            "This folder should include multiple images of the same subject."
+        ),
     )
     train_p.add_argument(
-        "--save_folder", type=str, required=True, help="Where to save trained model"
+        "--save_folder",
+        type=str,
+        required=True,
+        help="Path to a folder where the trained model will be saved.",
     )
     train_p.add_argument(
         "--train_text_encoder",
         action="store_true",
-        help="In addition to diffusion model, also fine-tune text encoder",
+        help=(
+            "Enable training of the text encoder in addition to the diffusion model. "
+            "This can improve prompt understanding but increases training time."
+        ),
     )
     train_p.add_argument(
         "--text_encoder_training_mode",
         type=str,
         default="textual_inversion",
         help=(
-            "Specifies how the text encoder should be trained. "
-            "Use 'textual_inversion' to train only a new embedding for a special "
-            "token added to the tokenizer, or 'full' mode to train the "
-            "entire text encoder."
+            "Text encoder training mode. "
+            "Use 'textual_inversion' to train only a new token embedding, "
+            "or 'full' to fine-tune the entire text encoder."
         ),
     )
     train_p.add_argument(
@@ -64,15 +76,15 @@ def main():
         required=True,
         help=(
             "One or more prompts describing the subject using your unique identifier"
-            " token (e.g., 'sks') and class family of subject (e.g., 'dog'). If a "
+            " token (e.g., '<q5xv>') and class family of subject (e.g., 'dog'). If a "
             "single prompt is provided, it is applied to all subject images. If "
             "multiple prompts are provided, they are matched to subject images in "
             "alphabetical filename order, and the number of prompts must equal"
             " the number of images. Each prompt must include the identifier token"
             " and class family of subject. "
-            'Example: --instance_prompts "a photo of sks dog" or '
-            '--instance_prompts "a sks dog in the jungle" "a sks dog at the beach"'
-            ". [*] Using a single prompt is recommended since it is more stable "
+            'Example: --instance_prompts "a photo of <q5xv> dog" or '
+            '--instance_prompts "a <q5xv> dog in the jungle" "a <q5xv> dog at the beach"'
+            ". Note: Using a single prompt is recommended since it is more stable "
             "unless you intentionally want per-image variation."
         ),
     )
@@ -81,33 +93,37 @@ def main():
         type=str,
         required=True,
         help=(
-            "The special token used in '--instance_prompts' (e.g., 'sks'). "
-            "If you used a different token in the instance prompts, you must use "
-            "the same token here and during inference."
+            "Unique token representing the subject. "
+            "This token must appear in all instance prompts and be reused "
+            " during inference. Example: <q5xv>."
         ),
     )
     train_p.add_argument(
         "--class_prompt",
         type=str,
-        help="General class description without the unique token, "
-        "e.g., 'a photo of a dog'. Used for prior-preservation during training.",
+        help=(
+            "General class description without the special token. "
+            'Used for prior preservation. Example: "a photo of a dog".'
+        ),
     )
     train_p.add_argument(
         "--num_worker",
         type=int,
         default=4,
-        help=("Number of worker processes used by the DataLoader."),
+        help=("Number of worker processes used for loading training data."),
     )
     train_p.add_argument(
         "--batch_size",
         type=int,
         default=2,
         help=(
-            "Mini batch size for fine-tuning stable diffusion. "
-            "If prior preservation loss is on, it should be an even number."
+            "Mini batch size for training. "
+            "If prior preservation loss is on, it should be an even Integer."
         ),
     )
-    train_p.add_argument("--max_steps", type=int, default=400, help="Training steps")
+    train_p.add_argument(
+        "--max_steps", type=int, default=400, help="Total number of training steps."
+    )
     train_p.add_argument(
         "--learning_rate",
         type=float,
@@ -119,7 +135,7 @@ def main():
         "--learning_rate_text_encoder",
         type=float,
         default=1.0e-06,
-        help="Learning rate used when training the text encoder(s), e.g., 1e-6."
+        help="Learning rate used when training the text encoder(s), e.g., 2e-6."
         " Only considered when train_text_encoder is true",
     )
     train_p.add_argument(
@@ -129,8 +145,7 @@ def main():
             "Turn on prior-preservation loss to keep the subject aligned with "
             " its class. When enabled, batches include both subject images and"
             " images generated from a frozen pre-tuning model using a general "
-            "class prompt. Requires batch size >1. Typically used with "
-            "--instance_prompts and --class_prompt."
+            "class prompt."
         ),
     )
     train_p.add_argument(
@@ -148,8 +163,9 @@ def main():
         type=int,
         default=200,
         help=(
-            "Total number of class images to generate when using --prior_preservation. "
-            "These images are used to compute the class (prior) loss."
+            "Total number of class images (e.g.: a photo of a dog) to generate when"
+            " using --prior_preservation. "
+            "These images are used in prior preservation loss."
         ),
     )
     train_p.add_argument(
@@ -216,8 +232,8 @@ def main():
         type=str,
         nargs="+",
         required=True,
-        help='List of prompts (e.g. "a photo of sks dog in Mars" "an oil paining '
-        'of sks dog in London")',
+        help='List of prompts (e.g. "a photo of <q5xv> dog in Mars" "an oil paining '
+        'of <q5xv> dog in London")',
     )
     infer_p.add_argument(
         "--negative_prompt",
