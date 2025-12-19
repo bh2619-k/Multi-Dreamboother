@@ -283,7 +283,10 @@ class DreamBoothTrainer:
                 self.accelerator.prepare_model(m, evaluation_mode=True),
             )
 
-        if self.train_text_encoder and self.text_encoder_training_mode == "textual_inversion":
+        if (
+            self.train_text_encoder
+            and self.text_encoder_training_mode == "textual_inversion"
+        ):
             comps.text_encoder_1_token_gradient_masking()
 
         self._acc_wrap = True

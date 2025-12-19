@@ -29,7 +29,6 @@ class SDComponents:
     _tok_grad_hook: Optional[Any] = None
     _special_token_id = None
 
-
     def _get_by_name(self, name: str) -> Any:
         """Return the component by its attribute name, or raise KeyError."""
         try:
