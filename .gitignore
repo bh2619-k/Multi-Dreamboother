@@ -4,7 +4,6 @@
 .zsh_history
 .lightning_studio/
 .vscode-server
-.vscode/
 dreambooth.egg-info/
 DreamBooth.egg-info/
 __pycache__/
@@ -13,7 +12,6 @@ __pycache__/
 checkpoints/
 outputs/
 logs/
-.env
 .venv
 .viminfo
 .lesshst
@@ -25,3 +23,5 @@ todo
 frozen_model_generation_for_pr_prsv
 generated_images
 saved-model
+config.bat
+node_modules
